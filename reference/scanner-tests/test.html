@@ -1,0 +1,91 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<canvas id="c"></canvas>
+<script src="cv.js"></script>
+<script src="aruco.js"></script><script src="codes.js"></script>
+<script>
+window.CODES = null;
+async function setup() {
+  CODES = window.CODES_LIST;
+  AR.DICTIONARIES.CARDS = { nBits: 16, tau: 2, codeList: CODES };
+}
+function drawMarker(ctx, id, x, y, s) {           // s = marker side incl. black border
+  const code = CODES[id].toString(2).padStart(16, '0');
+  const u = s / 6;
+  ctx.fillStyle = '#000'; ctx.fillRect(x, y, s, s);
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++)
+    if (code[i * 4 + j] === '1') ctx.fillRect(x + (j + 1) * u, y + (i + 1) * u, u + 0.5, u + 0.5);
+}
+function answerFromCorners(c) {
+  const cx = (c[0].x + c[1].x + c[2].x + c[3].x) / 4, cy = (c[0].y + c[1].y + c[2].y + c[3].y) / 4;
+  const mx = (c[0].x + c[1].x) / 2 - cx, my = (c[0].y + c[1].y) / 2 - cy;
+  const ang = Math.atan2(mx, -my) * 180 / Math.PI; // 0 = up, 90 = right
+  const q = ((Math.round(ang / 90) % 4) + 4) % 4;
+  const dev = Math.abs(ang - Math.round(ang / 90) * 90);
+  if (dev > 32) return null;          // too close to halfway between two letters: don't guess
+  return ['A', 'D', 'C', 'B'][q];
+}
+function detectMulti(src) {
+  const det = new AR.Detector({ dictionaryName: 'CARDS', maxHammingDistance: 2 });
+  const W = src.width, H = src.height, best = {};
+  for (const f of [1, 0.5, 0.25]) {
+    const w = Math.round(W * f), h = Math.round(H * f);
+    if (Math.min(w, h) < 300) break;
+    let data;
+    if (f === 1) data = src.getContext('2d').getImageData(0, 0, w, h);
+    else { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(src, 0, 0, w, h); data = x.getImageData(0, 0, w, h); }
+    for (const m of det.detect(data)) {
+      const side = Math.hypot(m.corners[0].x - m.corners[1].x, m.corners[0].y - m.corners[1].y);
+      const score = m.hammingDistance * 100 + Math.abs(Math.log(side / 80));
+      if (!best[m.id] || score < best[m.id].score) best[m.id] = { score, id: m.id, corners: m.corners.map(p => ({ x: p.x / f, y: p.y / f })), hammingDistance: m.hammingDistance };
+    }
+  }
+  return Object.values(best);
+}
+function rnd(a, b) { return a + Math.random() * (b - a); }
+async function scene({ W = 3000, H = 2000, n = 35, smin = 22, smax = 140, jitter = 25, shear = 0.25, blur = 1, quality = 0.8 }) {
+  const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#8a8f7a'); g.addColorStop(1, '#3d4038');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (let k = 0; k < 60; k++) { ctx.fillStyle = `hsl(${rnd(0, 360)},${rnd(5, 40)}%,${rnd(15, 75)}%)`; ctx.fillRect(rnd(0, W), rnd(0, H), rnd(20, 300), rnd(20, 300)); }
+  const truth = []; const placed = [];
+  const ids = [...Array(CODES.length).keys()].sort(() => Math.random() - 0.5).slice(0, n);
+  for (const id of ids) {
+    const s = rnd(smin, smax), card = s * 1.6;
+    let x, y, tries = 0;
+    do { x = rnd(card, W - card); y = rnd(card, H - card); tries++; } while (placed.some(p => Math.hypot(p.x - x, p.y - y) < (p.r + card) * 0.8) && tries < 300);
+    if (tries >= 300) continue;
+    placed.push({ x, y, r: card });
+    const q = Math.floor(rnd(0, 4)), rotDeg = q * 90 + rnd(-jitter, jitter);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rotDeg * Math.PI / 180);
+    ctx.transform(1, rnd(-shear, shear) * 0.4, rnd(-shear, shear), 1 - rnd(0, shear), 0, 0);
+    ctx.fillStyle = '#f4f2ec'; ctx.fillRect(-card / 2, -card / 2, card, card);
+    drawMarker(ctx, id, -s / 2, -s / 2, s);
+    ctx.restore();
+    truth.push({ id, ans: ['A', 'B', 'C', 'D'][q], s: Math.round(s) }); // canvas rotate + = clockwise: q=1 → card turned CW → which letter on top? computed below
+  }
+  if (blur) { const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; const t = tmp.getContext('2d'); t.filter = `blur(${blur}px)`; t.drawImage(cv, 0, 0); ctx.drawImage(tmp, 0, 0); }
+  const img = new Image(); img.src = cv.toDataURL('image/jpeg', quality); await img.decode();
+  ctx.drawImage(img, 0, 0);
+  return { ctx, truth };
+}
+async function run(opts) {
+  const { ctx, truth } = await scene(opts);
+  const t0 = performance.now();
+  const found = detectMulti(ctx.canvas);
+  const ms = performance.now() - t0;
+  const byId = {}; for (const m of found) byId[m.id] = answerFromCorners(m.corners);
+  // canvas rotation of +90° (clockwise) moves the A edge to the right, so D is on top
+  const expectLetter = { A: 'A', B: 'D', C: 'C', D: 'B' };
+  let ok = 0, wrongAns = 0, missed = [], extra = 0, unsure = 0;
+  for (const t of truth) {
+    if (!(t.id in byId)) { missed.push(t.s); continue; }
+    if (byId[t.id] === null) { unsure++; continue; }
+    if (byId[t.id] === expectLetter[t.ans]) ok++; else wrongAns++;
+  }
+  const truthIds = new Set(truth.map(t => t.id));
+  extra = Object.keys(byId).filter(k => !truthIds.has(+k)).length;
+  return { n: truth.length, ok, wrongAns, unsure, missed: missed.sort((a, b) => a - b), extra, ms: Math.round(ms) };
+}
+</script></body></html>

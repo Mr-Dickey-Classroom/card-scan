@@ -1,0 +1,23 @@
+{
+  "name": "stcs-card-scan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline answer-card scanner for Mr. D's classes at STCS.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run && playwright test",
+    "test:unit": "vitest run",
+    "test:scan": "playwright test"
+  },
+  "dependencies": {
+    "idb-keyval": "6.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

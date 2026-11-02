@@ -1,0 +1,777 @@
+<title>STCS Card Scan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: phone-first single column — scoreboard-style header with class chips, tabbed work area below. */
+:root {
+  --paper: #f6f5ef; --card: #ffffff; --ink: #16180f; --muted: #5d6152; --line: #dcdcd0;
+  --green: #1d5b34; --green-2: #2f7a4a; --yellow: #f3c623; --yellow-ink: #3a2f00;
+  --ok: #1f7a43; --ok-bg: #dff1e5; --bad: #b2361d; --bad-bg: #fbe3dc; --warn-bg: #fff4cc; --none: #e9e8df;
+  --c7: #1f4e79; --c8: #2f7a4a; --cearth: #8a5a2b; --cjh: #127a7a;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #11130e; --card: #1b1e16; --ink: #eef0e4; --muted: #a3a893; --line: #30342a;
+  --green: #2f7a4a; --green-2: #4f9e69; --yellow: #f3c623; --yellow-ink: #2a2200;
+  --ok: #6fd193; --ok-bg: #193624; --bad: #ff8b6e; --bad-bg: #3d1d15; --warn-bg: #3a3212; --none: #262a20;
+  --c7: #6ea6d9; --c8: #6fc08a; --cearth: #d09a63; --cjh: #5cc4c4; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #11130e; --card: #1b1e16; --ink: #eef0e4; --muted: #a3a893; --line: #30342a;
+  --green: #2f7a4a; --green-2: #4f9e69; --yellow: #f3c623; --yellow-ink: #2a2200;
+  --ok: #6fd193; --ok-bg: #193624; --bad: #ff8b6e; --bad-bg: #3d1d15; --warn-bg: #3a3212; --none: #262a20;
+  --c7: #6ea6d9; --c8: #6fc08a; --cearth: #d09a63; --cjh: #5cc4c4; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.45 var(--body); margin: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: #16180f; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.wrap { max-width: 860px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: #16180f; color: #f6f5ef; }
+header.top .wrap { padding-block: 10px 0; display: grid; gap: 8px; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand h1 { font: 800 26px/1 var(--display); letter-spacing: .02em; margin: 0; text-transform: uppercase; }
+.brand h1 span { color: #f3c623; }
+.brand .sync { font-size: 12px; color: #c9cbb8; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 1px solid #3a3e30; background: #22251b; color: #e6e8da; border-radius: 999px; padding: 6px 14px; font: 700 15px/1.2 var(--display); letter-spacing: .04em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.chip[aria-pressed="true"] { background: #f3c623; color: #2a2200; border-color: #f3c623; }
+nav.tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #2c3024; }
+nav.tabs button { background: none; border: 0; color: #c9cbb8; padding: 10px 2px 9px; font: 700 15px/1 var(--display); letter-spacing: .03em; white-space: nowrap; text-transform: uppercase; border-bottom: 3px solid transparent; }
+nav.tabs button[aria-selected="true"] { color: #fff; border-bottom-color: #f3c623; }
+
+main .wrap { padding-block: 18px 60px; display: grid; gap: 16px; }
+h2 { font: 800 28px/1.05 var(--display); margin: 0; text-transform: uppercase; letter-spacing: .01em; text-wrap: balance; }
+h3 { font: 700 19px/1.2 var(--display); margin: 0; text-transform: uppercase; letter-spacing: .04em; }
+.sub { color: var(--muted); font-size: 14px; margin: 0; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.spread { justify-content: space-between; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 9px 14px; font-weight: 700; }
+.btn.primary { background: var(--yellow); color: var(--yellow-ink); border-color: var(--yellow); }
+.btn.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--bad); }
+.btn.sm { padding: 5px 10px; font-size: 14px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.scanbtn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px; font: 800 24px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; background: var(--yellow); color: var(--yellow-ink); border: 0; border-radius: 12px; }
+.scanbtn svg { width: 28px; height: 28px; }
+input[type=text], input[type=date], input[type=number], textarea, select { width: 100%; border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 9px 11px; }
+textarea { min-height: 120px; resize: vertical; }
+label.f { display: grid; gap: 4px; font-size: 14px; color: var(--muted); min-width: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
+.note { border-radius: 8px; padding: 10px 12px; font-size: 15px; background: var(--warn-bg); }
+.note.info { background: var(--none); }
+.empty { text-align: center; padding: 28px 12px; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+.empty b { color: var(--ink); font: 700 20px/1.2 var(--display); text-transform: uppercase; letter-spacing: .03em; }
+
+.setlist { display: grid; gap: 10px; }
+.setitem { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; width: 100%; }
+.datebox { width: 54px; text-align: center; border-radius: 8px; background: var(--none); padding: 6px 0; font-family: var(--display); line-height: 1; }
+.datebox .d { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.datebox .n { font-size: 26px; font-weight: 800; }
+.setitem .t { font-weight: 700; }
+.setitem .m { color: var(--muted); font-size: 14px; }
+.pct { font: 800 24px/1 var(--display); font-variant-numeric: tabular-nums; text-align: right; }
+.pct small { display: block; font: 400 12px/1.2 var(--body); color: var(--muted); }
+
+.qpills { display: flex; gap: 6px; flex-wrap: wrap; }
+.qpill { min-width: 52px; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 10px; font: 700 17px/1 var(--display); letter-spacing: .04em; display: grid; gap: 4px; justify-items: center; }
+.qpill .bar { width: 100%; height: 4px; border-radius: 2px; background: var(--none); overflow: hidden; }
+.qpill .bar span { display: block; height: 100%; background: var(--green-2); }
+.qpill[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.letters { display: flex; gap: 6px; }
+.letter { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); font: 800 22px/1 var(--display); }
+.letter[aria-pressed="true"] { background: var(--green); color: #fff; border-color: var(--green); }
+.letter.any { width: auto; padding: 0 12px; font-size: 15px; letter-spacing: .04em; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--none); border-radius: 8px; padding: 8px 10px; }
+.stat .v { font: 800 26px/1 var(--display); font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.roster { display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--card); }
+.srow { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--line); min-height: 52px; }
+.srow:first-child { border-top: 0; }
+.srow .card { font: 700 15px/1 var(--display); color: var(--muted); font-variant-numeric: tabular-nums; }
+.srow .name { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.ans { min-width: 44px; height: 36px; border-radius: 8px; display: inline-grid; place-items: center; font: 800 20px/1 var(--display); border: 0; padding: 0 10px; background: var(--none); color: var(--muted); }
+.ans.ok { background: var(--ok-bg); color: var(--ok); }
+.ans.bad { background: var(--bad-bg); color: var(--bad); }
+.ans.any { background: var(--ok-bg); color: var(--ok); }
+.picker { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 4px; }
+.photo { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.photo canvas { display: block; width: 100%; height: auto; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+th { font: 700 14px/1.2 var(--display); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--none); position: sticky; top: 0; }
+td.n, th.n { text-align: left; position: sticky; left: 0; background: var(--card); }
+th.n { background: var(--none); }
+td.lo { color: var(--bad); font-weight: 700; }
+tr.avg td { font-weight: 700; background: var(--none); }
+.check { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.check:first-child { border-top: 0; }
+.check input { width: 20px; height: 20px; }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 700; z-index: 20; max-width: calc(100% - 32px); }
+.busy { position: fixed; inset: 0; background: rgba(10,12,8,.72); color: #fff; display: grid; place-items: center; z-index: 30; font: 800 26px/1.2 var(--display); text-transform: uppercase; letter-spacing: .05em; text-align: center; padding: 20px; }
+@media (prefers-reduced-motion: no-preference) { .busy span { animation: pulse 1s ease-in-out infinite alternate; } @keyframes pulse { from { opacity: .55 } to { opacity: 1 } } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>STCS <span>Card Scan</span></h1><div class="sync" id="sync">Loading…</div></div>
+    <div class="chips" id="chips" role="group" aria-label="Class"></div>
+  </div>
+  <nav class="tabs wrap" id="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" data-tab="sets" aria-selected="true">Bell work</button>
+    <button role="tab" data-tab="roster" aria-selected="false">Roster</button>
+    <button role="tab" data-tab="reports" aria-selected="false">Reports</button>
+    <button role="tab" data-tab="cards" aria-selected="false">Cards</button>
+  </nav>
+</header>
+<main><div class="wrap" id="view"></div></main>
+<input type="file" id="camIn" accept="image/*" capture="environment" class="sr" aria-label="Take a photo">
+<input type="file" id="picIn" accept="image/*" class="sr" aria-label="Choose a photo">
+<input type="file" id="restoreIn" accept=".json,application/json" class="sr" aria-label="Choose a backup file">
+<div class="busy" id="busy" hidden><span id="busyText">Reading cards…</span></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/cv.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/aruco.js"></script>
+<script>
+"use strict";
+const CODES = [22631, 9527, 34203, 36959, 9171, 18341, 49515, 3279, 12471, 44299, 40131, 36487, 39141, 447, 3569, 10583, 9907, 55311, 9019, 13027, 31365, 51287, 12879, 35733, 18315, 27971, 24935, 34975, 30215, 4587, 42071, 11925, 4767, 21647, 45651, 50759, 57615, 3926, 34723, 19335];
+const CARDS_PDF_B64 = "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgL05hbWUgL0YyIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKNCAwIG9iago8PAovQ29udGVudHMgNDcgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNSAwIG9iago8PAovQ29udGVudHMgNDggMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNiAwIG9iago8PAovQ29udGVudHMgNDkgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNyAwIG9iago8PAovQ29udGVudHMgNTAgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKOCAwIG9iago8PAovQ29udGVudHMgNTEgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKOSAwIG9iago8PAovQ29udGVudHMgNTIgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMTAgMCBvYmoKPDwKL0NvbnRlbnRzIDUzIDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjExIDAgb2JqCjw8Ci9Db250ZW50cyA1NCAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagoxMiAwIG9iago8PAovQ29udGVudHMgNTUgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMTMgMCBvYmoKPDwKL0NvbnRlbnRzIDU2IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjE0IDAgb2JqCjw8Ci9Db250ZW50cyA1NyAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagoxNSAwIG9iago8PAovQ29udGVudHMgNTggMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMTYgMCBvYmoKPDwKL0NvbnRlbnRzIDU5IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjE3IDAgb2JqCjw8Ci9Db250ZW50cyA2MCAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagoxOCAwIG9iago8PAovQ29udGVudHMgNjEgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMTkgMCBvYmoKPDwKL0NvbnRlbnRzIDYyIDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjIwIDAgb2JqCjw8Ci9Db250ZW50cyA2MyAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagoyMSAwIG9iago8PAovQ29udGVudHMgNjQgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMjIgMCBvYmoKPDwKL0NvbnRlbnRzIDY1IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjIzIDAgb2JqCjw8Ci9Db250ZW50cyA2NiAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagoyNCAwIG9iago8PAovQ29udGVudHMgNjcgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMjUgMCBvYmoKPDwKL0NvbnRlbnRzIDY4IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjI2IDAgb2JqCjw8Ci9Db250ZW50cyA2OSAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagoyNyAwIG9iago8PAovQ29udGVudHMgNzAgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMjggMCBvYmoKPDwKL0NvbnRlbnRzIDcxIDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjI5IDAgb2JqCjw8Ci9Db250ZW50cyA3MiAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagozMCAwIG9iago8PAovQ29udGVudHMgNzMgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMzEgMCBvYmoKPDwKL0NvbnRlbnRzIDc0IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjMyIDAgb2JqCjw8Ci9Db250ZW50cyA3NSAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagozMyAwIG9iago8PAovQ29udGVudHMgNzYgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMzQgMCBvYmoKPDwKL0NvbnRlbnRzIDc3IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjM1IDAgb2JqCjw8Ci9Db250ZW50cyA3OCAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagozNiAwIG9iago8PAovQ29udGVudHMgNzkgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKMzcgMCBvYmoKPDwKL0NvbnRlbnRzIDgwIDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjM4IDAgb2JqCjw8Ci9Db250ZW50cyA4MSAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iagozOSAwIG9iago8PAovQ29udGVudHMgODIgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNDAgMCBvYmoKPDwKL0NvbnRlbnRzIDgzIDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjQxIDAgb2JqCjw8Ci9Db250ZW50cyA4NCAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDQ2IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago0MiAwIG9iago8PAovQ29udGVudHMgODUgMCBSIC9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0gL1BhcmVudCA0NiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNDMgMCBvYmoKPDwKL0NvbnRlbnRzIDg2IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgNDYgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjQ0IDAgb2JqCjw8Ci9QYWdlTW9kZSAvVXNlTm9uZSAvUGFnZXMgNDYgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago0NSAwIG9iago8PAovQXV0aG9yIChhbm9ueW1vdXMpIC9DcmVhdGlvbkRhdGUgKEQ6MjAyNjExMDExNDU5MTUtMDcnMDAnKSAvQ3JlYXRvciAoYW5vbnltb3VzKSAvS2V5d29yZHMgKCkgL01vZERhdGUgKEQ6MjAyNjExMDExNDU5MTUtMDcnMDAnKSAvUHJvZHVjZXIgKFJlcG9ydExhYiBQREYgTGlicmFyeSAtIFwob3BlbnNvdXJjZVwpKSAKICAvU3ViamVjdCAodW5zcGVjaWZpZWQpIC9UaXRsZSAoU1RDUyBDYXJkIFNjYW4gXDIwNCBBbnN3ZXIgQ2FyZHMgMVwyMDU0MCkgL1RyYXBwZWQgL0ZhbHNlCj4+CmVuZG9iago0NiAwIG9iago8PAovQ291bnQgNDAgL0tpZHMgWyA0IDAgUiA1IDAgUiA2IDAgUiA3IDAgUiA4IDAgUiA5IDAgUiAxMCAwIFIgMTEgMCBSIDEyIDAgUiAxMyAwIFIgCiAgMTQgMCBSIDE1IDAgUiAxNiAwIFIgMTcgMCBSIDE4IDAgUiAxOSAwIFIgMjAgMCBSIDIxIDAgUiAyMiAwIFIgMjMgMCBSIAogIDI0IDAgUiAyNSAwIFIgMjYgMCBSIDI3IDAgUiAyOCAwIFIgMjkgMCBSIDMwIDAgUiAzMSAwIFIgMzIgMCBSIDMzIDAgUiAKICAzNCAwIFIgMzUgMCBSIDM2IDAgUiAzNyAwIFIgMzggMCBSIDM5IDAgUiA0MCAwIFIgNDEgMCBSIDQyIDAgUiA0MyAwIFIgXSAvVHlwZSAvUGFnZXMKPj4KZW5kb2JqCjQ3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5OQo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2Rpa0dBLU5dJkAuIkk4RSY5NSU2bWcoXCRicjpkcV1ENG09b2ZvTTY6Ymo8J2MsNyM+KXBYS2FVR1swKTw4QV06MV0kVHNAXEZHdUNOOiYhLTskb2omJDQzaV9sNUZKTikyaWAtTC9dKSY8KHE6Ty06LyslayolYy0yTmZvNks5K0lCZkxPUmM0UmYxZ1BQZSJCbWtfcmtBTT5ZZi1STCVKakgsMDtucCZMRU9CYUtLYzUoS0gwOT9FJEI0JmJCciFxbWsoW3VBNFpRT1sqWXM7J0hCZTEibTsjQ1h1aWY/OSFYPzdNIWYhKjcmR3I3WFMmMXJrITVRKCE3Zj4kQyU1WS9wMiQmLDlKTm1vQzROY2MmTVoyVF1CJSMsN01IJW5NQGllJGNeMUY1NCUmXVosVEpMXDRHQCgjWFcmbG1iaVohPmcybjRfK04hQXFJRm1DLWtZbWxybmBtRGk7V0BHQ0U7NU8nPGdDQk9WK0ddWHM6NT1dK1cxJn4+ZW5kc3RyZWFtCmVuZG9iago0OCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAzOTYKPj4Kc3RyZWFtCkdhc0ljOWhXQWgnWU5VMSUhXi9kZXBbR0sqLFNcPCNWK1oqUWREVWVabWoiTnEhV1hDZ0hgMD9aNig2UlI8YShxLD1sLiptYz40TyJeS21zODBQJyM3TXBmKmdrOCFAN2VdZmZXJElWNzZHX2w1XGQlSWxfJzMzQlRyIUNAMWZKZVVSRiI5NyIvRyZjZjcjY0BaXUAjcC4iO1lkcmxZKzhUMkQsLE5jQ2FFTDtXRFM2a20qTScyXys8bWZpKkJNcnI7SDEkLzxXSCwqKUg8ST8kLUVJTiVdbjppV1JkTyxmJ1BhJVFkT2A6M1s6WnVHQG9PVlgiXE5EbXEtN0BtR1VbaihLQEFQW1g9MjRfXGhabElwTkNba0o3cms5MkVIJUdHcGw0clpsRy1lcFlgcmRqWlFwPFZHTTUoSV8yKCZsQmU9R0clN1tCZVFuTC5zXStsKylcY25cSUhYb0FORGcvaDwkSyZKQSVYJVs9ZVRCRyNJRiF0YzgscTljND9PXF8lWjI+cnA3c01+PmVuZHN0cmVhbQplbmRvYmoKNDkgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggMzk3Cj4+CnN0cmVhbQpHYXNJYzloV0FoJ1lOVTElIV4vZGVwW0dLKixTWTsjVitaKlFkRFVlWm1qIk5xIVdYQ0JxVW5rZmU1KkIxUmc8Y0smZjQzP2dXQTRedVsvISdaKCZiS0wqLGc5dXBqU1puR1I3NjorNm8nVERIXT5AVEo0PU11Rj1hUk1dbVJHdV1eI248K1cwVCY/MHBAQ2o8cUlpZiRudSh1dT01SyM2ZFM4Y2cxV0ctVyhgJkklJm4sLGInMl8rPG1obS4vTXJyO0gxJEFIWUgsK0xwPFAwUkNFLjJxXG46aVdUZE8sZidqSFElX09gNio4OlpyVUVvUWVkKnFyYygoMkU7cDY4J19qM0twQk9RczgpQ0FxJnA7KVdDOjpUSTNfPHQpXVFoQ01LYy1kZG1qVTBMU1srQ1QtXmMjXVtRM1wrLGwkOU9rKWk4PltYcEJMMnItVkM9Y1JqV1dtXHBuJ001YHBxIzN1ZkQrM1BbXSNYVVlJX11dbVEqUDMlYyhvW25GMVxwNDMyak43RjdoZ34+ZW5kc3RyZWFtCmVuZG9iago1MCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAzOTkKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3JyJpWk83aUZXNE85IWckL2xBKmk6bio9UktfVG9GRnNALy8ndWI/XG5dXCd0PWI+UmVpayFoRSRdaUo4IV9OLnI4L0UzRCpdSDdyT2pValEvUDYkbTlIZyowUlUoUWovN1Q4Vk9bNTlsOSNWSlw3aj48OkRFYG5NVjRodWthZS1HJl5OPUFBQipxX1c6PzFcak4jMFdFUiFiSGwjaEtfNSZOU3FCVCRcXmw/dURNZWsrI2QkJXNaQzZQI3FFIWNFQWtZaHImLTVxU1ppb1MwSEVhLlAucVA1L1tkK2lmPzkhWD87YXFDWTdeJF1LLk48TF9gSkwrOSZiR29lNithJkNSZ1BfU29HISxJSWk7QGleN2RldDsyaF85Y1VGY2Q2PCU+XUFQPlVyM0tfaWNwLDI6YUtJJj09bnMvNnJlR0gvNj9zJTRIamhXSjApR21wPWhJPXBSYEprcD5gNDxZXGo2Lj9aaEcvWz1OZ1AqJCM6OyVzPVxEOGN+PmVuZHN0cmVhbQplbmRvYmoKNTEgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggMzk2Cj4+CnN0cmVhbQpHYXNJY2I+LHIvJkE3MFY3Y0ZLNyciaVpPN3A4LnRPOSFnJC9sQSppOmBna2Erb1woQD50XWw+N0Jta0UxLEdEai80JmJvblFdc19SRStEQEpMKC4zVWFsbihOdU1HXmFRUXJmKkdQVSg5STZCNGcwS1gwVWdPZEFPZUlHXlhxYWw/PmAhRjgsbjRpUSpRPyxtLXNbQCZXVXFTW0hxJitZLyJJWEAmK043MGpOWykxNm1UNV0mczUyOHBPV21zImBzIUcyPEZgOzNUREZfOGo7NEMzNTwlVEl0Tz9ya25Bc1k4cj87UFdRTHApZCpNXlRiSllsL0gqVzAhOjw7VU5ucTpbYiJUUkcxWCdibWkqcypUKzdqS3BfK3VyUGowS0BXXEdmVFk6RihDQFsvRVJpNC87YnQnNDBGZm0yQm4vTyheIWNaSz5EPF1rNm9NJ0RNPyc4ZmBCRlsqImxaTWUob0paX1k9Jjk2YVFbYkMtLTdjXj84X0xVT1IuPishLUosI0s3M0NTWVM6fj5lbmRzdHJlYW0KZW5kb2JqCjUyIDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5NAo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2RlcFtHSyosU1w8I1YrWipRZERVZVptaiJOcSFXWENnSGAwP1o2KDZSUjxhKHEsPWwuKm1jPjRPIl5LbXM4MFAnIzdNcGYqZ2s4IUA3ZV1mZlckSVY3NkdfbDVcZCVJbF8nMzNCVHNUQk0xZkplVVJCWF5IKlQ6MjVFU08+W0VIMkU/PDIyV2VHY1tzWSs4JWs8S3NoZy5cISVHJWdpPyhWJT0sVCZacWk6aUZsJXMoazgyNUI/RiRjbyllIlpyV3NhUz5LTHFDbFl1bWByYDNiUUNkLzQ0S20jU20pWD42K2lCQSlAIUkiIyVkTz1bSUlrNVhfdV5aPjhXYUo5RSlOVFdoQmUyQGVzbytcc0VybGNCIiRrbnJ0Tix0PCdLKERgIS1VJkBaYSE3Xj9ZLjI7XVswWkAtayZuL01AVGcxVTFPNSNpXERjZ21bb3FbOnBYdTZYNUpFUXJTIzVaTTs+OTldKWhhIWVLQVN1YiIhKGdHLkt+PmVuZHN0cmVhbQplbmRvYmoKNTMgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggMzk3Cj4+CnN0cmVhbQpHYXNJY2I+LHIvJkE3MFY3Y0ZLNyciaVpPN3A4LnRPOSE2aS9sQSppOm4qPVJLX1RvRkZzQC8vKCY4R2U0WXVEcC80JmN1XD9DKGtfVzEzUTVTQU1KZFkzRmphLFNENTchKChiTWMpZUk7YjFTZTxuQ184YkYkM20sMDk9RFc+T1hTOVJtbVZsLGdHVUYoZS4vR2JyU25dV2RVaU9CNEolTTRdYEpoVyZqUyUjMmFfNnE6P1wiQHFQMmEqVThca0NVM2RbWz1DTiFCZTtBZXMzbmNtcjNfdSFXTj9nJGUtT04kZmkiYWBfcDRVYExsJ0FycF1ONGIjPFZsTC4ra2FRVWc5SDs4TlY8X3VGPmByXkIkZzY5O1BHLXAxV2ZAW2tfKGVrcnFlcmc9XTMkbHAsXiUiL281Im9CPFFFZFNFQltSVi86PEg8WFZXcSs9P2JJVW9RPjFHNG85WzRkYmdpMGpaRHFGZEBJcy5kRk8wPkZ1W2NyLzxlMzNaWyM2KlMkb0doQys5OEI8LH4+ZW5kc3RyZWFtCmVuZG9iago1NCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAzOTQKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3QF9AXkNsJmNfbSM6KVMtT1w9MyQrT204NCI8bWM5W0c9QFdYQidkIWotZVNGWmluTCdpa0YxTDFRVF5gIVwqbiU4LixsVk51TUhJYVFRdWclVDxaW05EUnUlPigpPiVVZ09kcWE8OFlCTU88RF85UzxuVWRUSl4lLm07L0pGKlFVbmtIYiIqPzpnWCw/KEpmI0FNPmBjOi8kPyxhY007c282O3AlVDNPKFpjQUooXiRmaG1RZmlSXFJeVyQkISJvSz47LFk0UDAvNV07VSlHQHM4NlRMbTVyUiRzZzxNbz10JUBcPyJjaTk3WDZqazVuNSRlLWBRW0JrXGwuQDM9aUAwb2xbMF9oJipKSFQrVEBGL05AdSYjYzZfP2ZQaTRTKURNMnQtRW5PUi5kOiYwQFZDPm49YGJhWCc4YE5uYFlCNiJJZ1c1bCpSaC5EQjBoLk1lR3F0T29RQ3RgPVVVRFlidVtkWGZnI0pZb04jOT5Jbi9jfj5lbmRzdHJlYW0KZW5kb2JqCjU1IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwMAo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2Rpa0dBLU5dJkAuIkk4RSY5NSU2bWcoXCRicjpkcV1EJzdQL2ZvTTY6Ymo8J2MsNyM+KXBYS2FVR1swKTw4QV06MV0kVHNAXEZHdUNOOiYhLTskb2omJDQzaV9sNUZKTikyaWAtTChZOTU8KHE6Ty0zRTRGNSlHSmc6cUFkT1pkMG9CNSNcc2opVWMvZlQxUFEkTnEjRlIlI2A7Y00rQjZaLFUvIitoRDcyPChYMCJmYExRTi1qOG1UWz03UWo5X3RoZ2RyIz5QYjg9cyE4T0FmWy45Kkwoc00oYGo4XlxGU00nLlpsIVA7Ui9zNj0oWlE6UF1jVW4vcVoob11vbFQ2UWkxN01oSnJHLFU5XSdORk51X0RsYy9SN2c7PjlgQjZNWzc8LS5oYS1kUF5OLzZMK2BeI2VvQCdFaTJDNUp0WWVsXSo/KDNoMWhPRlZAcl1BJThVcHRnTERXOCFCOlZTZmssSFthSS1xVVlyTmlHaXJbQTNZPi9VZjd+PmVuZHN0cmVhbQplbmRvYmoKNTYgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggMzk5Cj4+CnN0cmVhbQpHYXNJY2Q3VjsxJ1JmRk8qOlFCJU5PX1dFQ2xiX0s0cFdYXVVHJDNFJ1xQT0soJUxiKzhRcidxOVVfZExqSUM6PCYhbkY3VG0zYTdec185NlE5WWUrJFMiT0ZJdWJQQGFpSi4mWjNDW0MtJmtfTEZQOlNrbTQ7YFo1RVM2dDAsQyEqMCE3VFVUVlwzdCxAQWgxWSZsQ1RDSCVtKEs5KCVqWkwwIWA1MCgxWyMvZlNIQE50Lmg2UiQ5ZGojcy8kXFI5PEcnbSVZUk85W21cP2M9RGoqcDZUQG44SWcmK0ZSXyg2ciZrWS8uKCZpRiRkWT5VWCdUKDpaXVw6MkU7cDZPMy8tMUtvciwpXlxbVVZHb207LEVDPC5SLj9daElLWWFwUl9CJXNnODwrW0UmVzszcDYmVEtvSl1GJCIrLlVFcktsUkJEXyZXYGBQcVEyZVgqMC1HXG5aYi5FWGlDYGE4WVx1WWhTKzVuQ2FPTjUvLTp0XT1SPic8SFtNM0NcV1wqZEprP2QhRVtwTE0/fj5lbmRzdHJlYW0KZW5kb2JqCjU3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5Nwo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2RlcFtHSyosU1w8I1YrWipRZERVZVptaiJOcSFXWENnSGAwP1o2KDZyMVVIdDU4ISNoXW1FNyg4JGIzaHFPQCEnJU4lYlAzXC1bal9OOipOVTsrVzBNS25AXXRGVWNvY0pqaGQ3SyxidDRST0xHRjlQQy11RjsuTXU3N1hsOUFlXjtSRDVwSjQocDldZm5wXjNvYTEwSjNfcj5dNywpVCRSTTVWU1lwT2ArXDc8QFhfUXVbWTw0USVPXy5jKGNHMzU8JGlHWElpZGtuQXQkOGtNZUM4QFgpMS1oT2AwcUQsRCJIcCdMNS03QG1HVVsmNi5fRmU4OV5dIiJxSGxpV15lMDswZSo2RWNjYGw8ImlpWWgoLkxea0RaKC8nNHU3U0BMNEpaIm5cKy5VRElMJTYiamlYMkk0LDBVampmQS1kbEFfZEY2aj81N2AyI1E0dDJDajFENSEuOV1hJmdfdWUrPmVRbDVvbj5LQ0pBVG4vYDkuRHBZO0Z+PmVuZHN0cmVhbQplbmRvYmoKNTggMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggMzk1Cj4+CnN0cmVhbQpHYXNJYzloV0FoJ1lOVTElIV4vZGVwW0dLKixTXDwjVitaKlFkRFVlb0UvU2tyOmRxXTlxXjM6ZmU1KkIxUmc8Y0smZjQzP1ooRXRedVsvISdaKGMhS0wqLGc5ZGpPXVpuS0IuUSVZPCQtbEFMVmdMKi9uPU11Rj1hUk1dcVJHdV0+S0g9MzpLSV5uL0VAb3VwKmR0RHA3WF5OcVVIWUhfVDhxaHI+Nz9HNThWbmlKM0A6SlQ0UGdKMlBEZVNLNCMsanAsJ2dzc3AvU2FNQ2lPb0hKYWVDSk06KmFlOTliWy5lcl5mLDRKQURHZD9nOCRrMydpaDJFO3FRKyRFQ2ooMDFlNnM2SjpPakYmLl07TiZLMUYhTSEqKV1RaENNS2MtZCxCX291WnJkWWwySGl1ZCVRcXVVcTs9WWEuWzdFaCdpdTZjKDFGcW1dUF5lUS9GKz5HOVxwdXJtKyRVQm01SFBDbWx0JStdOHMubWBNVmxcNTNgWDZDUDItR0dqbXBHSUsyXGhVa0p+PmVuZHN0cmVhbQplbmRvYmoKNTkgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggNDAwCj4+CnN0cmVhbQpHYXNJY2I+LHIvJkE3MFY3Y0ZLN0BfP2wjLVYlPyoqMDowTjdrUlouSmwlcW8mOzloKmVvaThRUk1QXTJBTls8YipBOV9MVFhaWDVec3FFOFE5WWUrIlkpbkBJdWJQQGFpTltQWjUvXllQIiRpNjNqI1IkQzZHaVg3cUBfQ0sxW3I9YEwtdWBabiJaOmFCKDNVbF82R1VQcUdPRy9hWkVMRWMxTTVMVWJcOF9yPl4yLERvLChOaTlkVHBQYTpAS3IhOiY7NmtcJjRRJjY/PFA2NGZFLjJwMXJydFtvZE8sZidqOm4kJVAtRFJYOlsiXitvUWFwLS42VWhPNXUsTDYjTylPTEtUWjJMcyg5JUYtL1RTLDc7UylfR2Q6alVEKm04YjgpXUYiQjtHOEckblc1KCU/Mi5SSmRtYnM9WyM0dDtbVlVwRk4idUw9RT9dckBvZGVIYlNQQzA0SGpoVyE5cko6RFMnNjdIaSlLaURFa2soJWRVIlxxLEAlTz9ROGNxYTFfP21xWjJIPlVuUn4+ZW5kc3RyZWFtCmVuZG9iago2MCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0MDEKPj4Kc3RyZWFtCkdhc0ljOWhXQWgnWU5VMSUhXi9kZXBbRmAqYzRuPiNWK1oqUWREVWVabWoiTnEhV1hDOFlETUtmb002OmJlMmNSLD1pbD9wQFRKLyJDMGRyODBNZTg3TXBmKmdrOD9KN2U7ZW5RcUppQUtuQF8uQys9JTQpMmlfYkxAdGUwLCxZLGw0JGpCcyRKTl1vXDxfIk5COmdWOHFDKGYmXEMrdCVPOGI+JnFpPmBqL1ZfNnI4VnFDTCkmI2s3KnEoIT5hW0w6NlNMP0o0ODA3OGpJMjIyVkhebkdLK004bEFVQGE7XSZpaDg4RlgxMzZlZDs8N08kPCM3R3VwVC1BV21ldWpldDliPV1pZHFwdHRBZ15aOWVjQTVcPyhNZyg6J1dHUUdrazooamlyPkQiSkxTO1tiVFd1bi0+JmBENkcqKjsxQS4sKkRLcUBsRlVYcHRIPScxZDUjLTJsTCI0LSRrM2UxI1VeWVR1UylnaV9rKWpMJDk9NExcW1s0T1ZjKEA+bWtuRjFbRSpiN0wqSERJWX4+ZW5kc3RyZWFtCmVuZG9iago2MSAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAzOTcKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3QF9AL3U3cDgudE85IWckL2xBKmk6bio9UktfVG9GRnNFOTgoPChIXW5dWWZtWmluSl1WL3JtQlY/KiRtIkIjTFVPOl9dVSpdS2RTTTonJE8lNDJdWz4rbz5HaEpKOCZXKmczJU0qWy5UJ0pbUylQbUluYTJNOE81aiQ+ZyhCSlVPdSk4YGUnX2A3TjhfajBzJFxCbCNpayZzV0hNSGMqdFcnNjo6SnAsOFRVPFloVGs1NkY2YSVRLCtIbTNCR0lXXjUyTCtuTTUtUGZAPlBhTCRhRTRiNy5rYmVbXjE6LCwuU3QnQVUnQ3NoS25xOk9eVihocE5eXSNQOiJbWFBxODhMQ1laRFktTkUxRWhOYTguVHRIT2ciMVYqTyg2LSsyW0hlJm1nSToxVkMzR21jZG8lXHFXPGJpWTltbTFUIlplSCFxVjRZZjoyczFJKmhRaF1FZFtdI1hVWUlfXWFtUSxlcypQMGlAaVNlZUZJby0lQ0NUPTIkfj5lbmRzdHJlYW0KZW5kb2JqCjYyIDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwNAo+PgpzdHJlYW0KR2FzSWNiPixyLyZBNzBWN2NGSzdAXz9sIy1WJT8qKjA6ME43a1JaLkpsJXFvJjs5aCplb2k4USZmKDNTQU1RKDg6Nm0jSjp1Iyw2QC4mI1s5LT1EUSE+Vj5aXlcyPltBN1RkOD1jNW09OEwib1ZTUT0/TTFXcm49LDtRWDUtbjxJVShNPXIhK05qZ1QsQCVqJCZtKVlwL3VoTUInSFslbFxNOWBGMVBySGEoYDFuNj1CblRwNnVnPGwmTi9ZPlQkXF5sP3VETU0tMEgpYyIubGomaVozSydvO2A4bzJ1JE87NS1cMzZWb1VdXEtLVSQhNjlrTEZjUCVnKWEtL0FzRV5JSlcqRF9KLDdlLlojcFttY1luaj1PIWAiaVo1VmF1aXQtOF5hKidZXmpPTjlsXEVjc2VgVmN0SDkuMzpKbitqRlwsNjtDSDFOLyQ6Uk4vY0IuODdHWSlOPmgoRnE5WzRkXkE7QWRLckg9MWhyRl5uc3JWMStnQ24mMCU4KTlxaUQ7WktXTzclWWUjRE90L1Z1fj5lbmRzdHJlYW0KZW5kb2JqCjYzIDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5Ngo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2RlcFtHSyosU1w8I1YrWipRZERVZVptaiJOcSFXWENDUzlCYGZvTTY6YmUxVUkmTDkjJXBNcFljIW1bdFVVXykqIiw3TUZAWSFPOUZVTytJbzwiX2YsVGpWdCs/JV9nRz9rS1RcZCpmYTBST0xHZjlQQy0sSlBnTj4taU9CSDota0BhUFd0JyZsKDxAYnJAJVtXKFlXPVhnZUxJMEVRXidLMjw9OjJkISdOWGdqKDlFUzZtTlBHZmRbV0RoS107MD90LDgmMTE5Tl5nYC5gJyU4bFM2aDxoP1pYPFBhWmNaT0VTN1JtL28oYlJzNkYqZ25SL2Ezb3JmRFU3NjcuW19DY2s0blZtXlNhUz5aLkFvZEFocCovNSV1Sl05dUtDO0dKIVNLZjVIYUEuSFsoOnJLOFVYcF42KFJXaDEkQiZLTyFmdUQqMS1nOzVeIkk3J3B0V1EsVzgiZUJWU2Y6cUhbYUktcVdBKEFtWEZWUzpqYDpeXD41ZX4+ZW5kc3RyZWFtCmVuZG9iago2NCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAzOTcKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3QF8/bCNWYWpvVSowOjBON2tSWi5KbCVxbyY7OWgqZW9pNUApQVcmW0FOVmFmOlIzLEs6dSdaTEAsWipOOS09RFEiVm1iXl5XMj5bQTdXJiM9YkY4PFAiJGk2M2ojajFHKl1DaDdxQF9DSz1QVE9NX2JxYC1zXU8rZzZJa0hvTUlIJS8qQThYVmY0NlQxc1U2KUVNM2hyYFJmcydFJzUnTzsqdURuKT4yKVRGNmZuVTNQUmcjbj00bkFuKmtbbz9YOkleXzlbYCpNOF4pZjdBZD04Q2snUD9xU2FQKVNsZzdmOlkpYmwkMk8uajQ8W2xGYWFhKkNsSVdmM0kzO00tKCd0ZFFPYzdkOjFsY1xtYzwsUWNqaUNrRFlvJS5mWyY9YFtHYXA1Ul8yMWk3UFZeWy1eMSRNN3E7aHQsV25oJ2pYcj81ZFMzbUBWKismKERdKylJYlQuUikqai9bKCZYMU9CNjxKVSJNTDQ9RmZJMU5WKk1ePjEjfj5lbmRzdHJlYW0KZW5kb2JqCjY1IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5Nwo+PgpzdHJlYW0KR2FzSWNiPixyLyZBNzBWN2NGSzdAXz5IUC1WIyg/KjA6ME43a1JaLkpsJXFvJjs5aCplb2lWWylBVyZbQU1RJVxPLV51Nzp0Vis9QC4ldVo5LT1ESSMqa3A5XT5vb1NBNyxnIT1jWmBROE0oWSEsLUlXV0hCdGdsN3BtJVpUV0FOdWZKIk9ZTyIzOTJEKUk7L15GOEQ+clkvKnM2ITY7NjFQckhhMGVOZm1bLmxVKCZiX0pSJlhEcDNjWS9yQDJgSzxETVkkSCNLXWheJkdfYiY1cjk9QE8lO3Q9KTpGcWdRLjU4LlFPWzsoJVRFIT0lT2QzdVhBMktkR08+ZlxrJCxKciRePlhSQj9pUTtYIi8uS1dMZC0tQ2o/VGhxaXR0R2cpc2JoSzUmYSVFKCc9L2coPVtwPCVsNlxIUzRIXko9Y0swPCc3LWo5Q0RMVTtAPjJcK209QW9VKChtMyNeIyYtNy50JGVMI0lPSE09I1hPOU4/XltBJmBbWDNwW0VGczVLSjlSTHA8Yll+PmVuZHN0cmVhbQplbmRvYmoKNjYgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggNDAwCj4+CnN0cmVhbQpHYXNJY2I+LHIvJkE3MFY3Y0ZLN0BfQC5KN3A4LnRPOSFnJC9sQSppOmBna2Erb1woQGgrMzcsN0Jta0UxLEpXYVFRWip0WypJOj0saUo2WjVSTHArMTtZMGhqIUdIcTEicXQnSzFcSSUuaG1yZlpZY29kJ2VKPmwwc2wkVlEiR25MLDgxcGdqMjYtJi5pUkAsJ1hYaERcQzBMXipkcygtYjU2aFMpPCp0ZW9UUkhpTSdzdTotREw/IWhAJiRgKFg4THBAYStYOkVmWlJSWCpAJzhqOEEwRGk9MDMwViwmWS4tbi1tUSxMSTxXNjlrOkAwL0taUWdRU3NbRV5EcjFDZW1TOzxxNl8iXURNN1NxKDw0NldDOjpUM0tjUDVOSylzXGBJRnNSO2ZeM1hEbTohaUNwXXVSKi1gQV5vJW81aT09QSpdLyQ6UlBjLCtSV0MjKEJxUyhBVjtSQ2wjb3BrajZlR01DWExocVFIbXAjYjs4QnNERWFOYUhwYW1eNT8qR2hiQGtNQkBPOlVuLn4+ZW5kc3RyZWFtCmVuZG9iago2NyAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAzOTkKPj4Kc3RyZWFtCkdhc0ljYj1dWjsnXSVxJiVfMG5RYG5ZaHQ5M1csSUprQlw/LUZCYHJEMkwlbHJrM01mM2AnW2xiVGwzMFNHUDpWS1NnU2JIYXM7bCpnYT49UDQzN0soKW0vbjJubDQ3VU9PXlJlLmxNKktTM0Nqb0lcWFhKam08cjZSaU9OLyNLaGQnOzomWWxvPUYxVUd1Q08rREVzYCNUaWI1ZjExKGE3bGlTdHBEPV5oKzxQSkszWzIscmkvI1UrXUdJciEvZWhmZCdpWGZaTz5DM2A+ZmVyJig/XGE4bjhJZlsrRlJePUtwIVkvPTsmMDQnRGdCKElANDJLOGwrI1dPOyUzXDswa1A7QDRNOG9zKDklRi0vVFkuM2ZaYUU0QlpddDJJVVIrVVtYOTlCOUVgS2o6UjwpTC1eYDRfMXAiJC9DMEkiOVNJUW1Xb2FkWVhHKjkiMFE2ZSYoPGBRV1QjaXU8NVozJ0VnTUwhZGhMNSoyXHJYJidhLzBqXUlQXy5dZiwiQUVuWHBwOzVCMkNRUU5+PmVuZHN0cmVhbQplbmRvYmoKNjggMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggNDAyCj4+CnN0cmVhbQpHYXNJY2Q3VjsxJ1JmRk8qOlFCJU5PX1dFWEguNks0cFdYXVVHJDNFJ1xQT0soJUxiKzhRcUxpOVVfZExqSURGaGRuPmYjOmdEViFALFoqTjktPURRIlZtYl5eVzI+W0E3VyYjPWJCVT04TCJvVlNSdSk5NDNMYUU6TG9SS05EX1JPYEs6RThQVis8UWFCKDQ/ZjBxXjpbQDl0T0paa1JfbzsvInRmazY2T0Qoblg5LVJQUnRqSCwwOW5wJktaOkcvIz1CPnBENCRmaD83ZmlSXE5eVzYwIyJvSz47LzRjQzgvPE5rQSlHQHNAYExrTDFyb2lzbGIxI2xrJUBgbEwwMVglclU0bmEtTF05TzlxTm5pKktTbkQrVSRyYzxPa1BLLlomWltCbGQoZVZFWXF0MiJyXEMzV1dgVks3dURcNSt1OiVYKTxkNTYkc2tJIT5bXmRDKW0lVWoiJERjZzgtISMsczFDR1syWV1JYFtdI1hVWUlfXVVtUSxlcypQMGlAcm8qRDI1MC8wUUtQNzBVfj5lbmRzdHJlYW0KZW5kb2JqCjY5IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwMAo+PgpzdHJlYW0KR2FzSWNiPixyLyZBNzBWN2NGSzdAX0AuSjdwOC50TzkhZyQvbEEqaTpgZ2thK29cKEBoKzM1Zjc9SVhtYmZuZSksdEspQXA+bSdXIl5LbXM4MFAnIzdNcGYqZ2s4IUA3Zi0qTTplPCdMS25AXXRbMTFdTkpqaGQ3NlZAWV9CcjpZXjFQJ08xKlFLQzNkL1s4JTVhdU09UD5iPDdPN0w/XGtXYXNySCVyaVUoQio3WVVkVl9hTi89SnNPOCI1OWFbTDo2U1g9R0hPa2V0Q3FeVUc3W1EpJTU1XjVZYDctUEFDLHReZCdsVV5aNzVHPV9KZD9nOCRrNDdSYVMiLFNkI05aOTZfRmpnRnMmUW82LHNNTiEtRkhDV0dgTGlVRC5EVGM6W29DaWNdZ1Y2a1pdU0EpQjE5LSJVQ1cyTmtCUVszdSxuQmtfYTlxXWJZJWpecT1QZD09aWJZbjRfW2AiJXI8a0dQZlZsaHR0XzhwJFVrQEJzREJgTlpXRCFtXjU/KkdXXCJ0TUJAVmxVbmR+PmVuZHN0cmVhbQplbmRvYmoKNzAgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggMzk5Cj4+CnN0cmVhbQpHYXNJY2I+LHIvJkE3MFY3Y0ZLN0BfQC5KN3A4LnRPOSFnJC9sQSppOmBna2Erb1woQFNPZUgoNz1JV0JjZzV0dTk5OzdhbUU3KDgkYjNocU9AISclTiViUDNcLVtqX046cysjVG9yNyMkM2QzckMpYTYlImNJVU4jISJsRzFmSmRqUkYndU9OYzZUKzM6PF0+R2A4Q2wyOUkjWVByO0lxTzdKP09UZTIjPGpXbT4xUVEuI0NLLTBPY3AhMVAiNDdDK1BySlRfOzAwLTJwKkZYbHRXc2FTPktMcUNsWXVtYHJgM2JRQzsjQ1h1bSNTbSlYPjZcJEIwIiQ+cT47WCgrYmQuYD9oaU9GZj4kQ1srXzRLL2A1OGksI0FQMXNhKkVQVFg/VFlHK011SzdhakFbUjhNL1RhMXBjOjIsZExAQl1TM011X0FJJiNqcFRFIUcobW9AaD50c2A0WWpnNmUsUzpsMl8wOkU1P2xYTE8wPkciVldnL0BlL2MtUCMzIlAyaScmUTwhLGFycVNIfj5lbmRzdHJlYW0KZW5kb2JqCjcxIDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5NQo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2RlcFtGYCosU1w8I1YrWipRZERVZW9FL1NrcjpkcV1GSjdEYmZvTTY6YmUxVUkmTDkjJXBMNDR1IiJuS3VVXyRRTCw3TUZQREYsS1tVTytHdVckUlw4NkdfbUVGPWdPV0pqbTxiNllRWCRDU3BtNiNKcU5gRkcrR29gYzVARmlvQ2ZcV0NMc2lyTV1gRWNNa2tvY2tjRnI0IjFkOFBxYGw5bzY7cCVUM08zc2hNSS1dTXJdaGBtJlRuTmZcbFxtIW9YU3MmdUFBVFE3KzE6WFdyc3Q1Rz1fS2Q/YXM5KjZPSk9DaVZqKzQiPSNzKDAxZTZKK2AsN25wTVdrZFlQaV1MSV9wKTJAYmM9J1lncFA5XEJOJzRDVGJkMyt0bDgzOk87MWFLbFE1OGduVk9DW05tJmMsNEBYPWpuclc/U2whRlJDcFE/LiU9VDRHM15IZ0dGb25FbURpO19AR1VXPzVGTllsQ1ElXU9Ham1wR0lLM1MhVW06fj5lbmRzdHJlYW0KZW5kb2JqCjcyIDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5Nwo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFZVm1sYjw9Nk5qXkRZIkk4RSY5NSU2bWcoXCRicjpkcV1ENG9UYmZvTTY6YmUxVUkmTDkjJXBMNDR1IiJuSHNVXyRRTCw3TUYwWSFYP0dVTytVczwiX2YsVGpWdCs/JV5bUV8nMzNCVHNUQk0xZkplVVJGIjhuMmk8Zi8sPU1pXm5lbzlPVERaZ19WQWNTO11IP2YsYC5iVzolXyVXNzs7PzFjNmsrRlMnc3BVZFJRS3VWS18oLF8hQUUsLW5Wc2NobC9gZiIvJkhScjUtZTpiVXI5WCNLXEpBKjZwTFhIMC9LWlFqaUxYYDM/ayg5UFVAXmEudSFmNnFVSCxQL2VCZFA2dDUxOlAhLTQ0S0IjKTVEbGMwI0RVMmAuWW5VamtbJW5IV0doUDFLXzI3TUgtdVllMG1QJnQzX2ViPzloKDo/Z2UxTC9YaEJOLUYlQm03cW9iKFdkTnQtPTBybjJCcTJncyM1XGp1ZUsrUF0zSnI9PWQoPypVMm1+PmVuZHN0cmVhbQplbmRvYmoKNzMgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggNDAwCj4+CnN0cmVhbQpHYXNJYzloV0FoJ1lOVTElIV4vZGVwW0dLKixTXDwjVitaKlFkRFVlWm1qIk5xIVdYQ2dIYDA/UDItUzhiZm44IjRHKVhQZF5lLTdaW2c1JyFcJmRbYTlbRTtPLi90ZWA5Ok5iKDZzUTk8W1xmVUdMcDRjLjlPTWlAT1EpJC5hOFsiPFtQMyNkWio6OSREWmVqTyQ7OHNVSFcxNGo9QltocTRmcSQ0aVcyYShjSmplJmxJRyk5TEs+OF1HSXFOL3QrbGpgMEJrT2o4Z3BlPTdNLU9gVkokZl9BZz87OHRUMzo7LFVrLDgmRllfNUc9X0pkP2c4JGs0N1JhUyIsU2RPMy8tIUtwRFJrcy9nYks5PjFwaTlIJyZHR2BMaU1EPCdQNjpbb0lrY11nWTUoZS0lWylAJWpuIlVDVyJOZFBkaTN1LG5Ca19fSFw/QWdMRT9zXCUtLz0oRGQ0SG9OXEpGXlY8aC85UjlwWzVAVGgwc2AvKkIkWExvPCVILl5HWj8uTnNGUXBpV2s/LVVvWH4+ZW5kc3RyZWFtCmVuZG9iago3NCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0MDAKPj4Kc3RyZWFtCkdhc0ljOWhXRFknWU8wQSUhXjBSYGs4Kj1nN3U4MCpYJWJRZDdgMFsuXkMtdS8pbj48LSMkZXFBTC9GcFBGNl5Ab0ZXPlpNWWgsbmJXUlJzJClISzxUTCdAXnBVS2FdTi9bSFZnUzlwLmRLa09uVnEhXVhiVkJ0KExeXlM6OmhjZjozInIiKydpIV0hVygrOj9qV2tvQmIuLytlRj44VmZCcj50RSs2LFssJSNfOyYnQis2bSxiZyNVaEQ9R1wkZy0jQzswJSw6NFEmNnMuYzAtLjM1PCVUSXRPP3NrbkF0JEVmKlAjOF8/NGsnRGhNSElAYVBkLlNuWCJhVS5jUDwxWFhRTjkhNSREdFdGJ25pZFU3QFosbnRWYXVpdC04XmEqJ1tCZzFWVEwtPVR1Q0s2VSFdVDxFOFlgNWE5TyhKViw1SCY9KyVwRFtJZkEnKDNSNy9FYE1SWkI2IklnOyElMW1HTScoZ0lKQFZVbW0iT1QoPkdfUHBlYzghPzVyWnBhLnIpaHAmZy5iVW9qfj5lbmRzdHJlYW0KZW5kb2JqCjc1IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5NQo+PgpzdHJlYW0KR2FzSWNiPixyLyZBNzBWN2NGSzdAX0BeQTJiLiU6KjA6MD43a1JaLkpsJXFvJjs5aCplb2lWSylBVyZbQU1RJzIqQSdTSlUyWztaXnIjKCRROVlkcCI0Qk5SaDtjTGQxLC9Ra1hAIjstVV8qc0ZMbzUwclI6UnIvJ2M8c3RjckltcilnM0tLLXRHPnRnXEUqOUhrXTxQOV0yTUdYSVxFSmlgdTNwKFBQLjlnZUxDLkVRXk5YUTFCMUdrYEQ7bjA1VzAjUz1fL1Y0RC8kPzJyIm8rPHU1Z29FJjAucUBeLzxySlNAXmhXTDRGcmA/MExMPWE7UG9WLiNRJG8mV19vNkVpLkFrbDdcanMsbkgqK1dYJWoyXWExXVdKciFpZFpYWE1xRDItMio3QlhzNWxJPlpbR1xqPE5mYlw6MTM5Lmo1dURXV2hRKGhDKVUjIWJVTCNldW40X0NXIWlla3JHUGdiR2h0dF9AOiYiMi5wPVFna15sTipDbkNrYEI0SEJDR2ZhaTxgVW8rfj5lbmRzdHJlYW0KZW5kb2JqCjc2IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwMQo+PgpzdHJlYW0KR2FzSWM5aFdEWSdZTzBBJSFeMFJgazgqPWc3dTgwKlglYlFkN2AwWy5eQy11LyluPjwtIyRlcUFML0ZwZSFZTCdvRlc+Wk1ZaCxuYldSUnMkKUhLPFRMJ0BecFVLYV1OL1tIVmdTOXAuZEtrT25WcSFdWGJWQnQoTF5gWkMnVTw5Zk1fYnJrPmdXZylYLllBY0tJXj4laWBiJi00U1U+Zi1NYGliVDRhKWpEKG1OVDovJD1oQU9vMnVIK1tlPi1QdCIvWl9IT1khZFZTJnAvU2NDbXIzX3UhV04/ZyRkcEM8OUI2ZVRgZmRRUy1uIlpZNVBkTElubDIzXkA/VkFxYE1ibUI9cj5BMnB0dEFnXlo5ZWM8NV1PWShKZy81V0QuJUdsUjctanJMJnNBJVJaL241WFY7OFtHXGpcOVRdaVxBNGlQY0paZWQmXy8mOU85Ll1AT05USTFzIjQtJEomdG5AVUg/XCNFblU6MUs7PT9gYFJNT1lUbGhGPiRrWyM1J0xXPzFdK1N1MjFAJjBifj5lbmRzdHJlYW0KZW5kb2JqCjc3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5OQo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2RlcFtHSyosU1w8I1YrWipRZERVZVptaiJOcSFXWENnSGAwP1AyLVM4U1hHZyc0RylYTGReZS03WltnNSchXCZkW2E5W0U7Ty4vdGVgOTpOYig2c1E5PFtcZlVHTHA0Yy45T01hQFpdVy44aStHYVBtSyVMRkpIQG8jIkh1Z1kiYScqai84WXNqPUJbaGxdMHVrRixVS0QwbDFfVC0pLnAyUiJ1W09HVjxhJj5WcFpdTSguVShhVEdrVFlNcDQoTXQ8dFdLSyJRVVBXbD9TVTg1YDdOZUguR0ltUUJzVUciRihiaVFyTDJFO3FRKy1lMyEkUy1yLF5cW1VWcSojP0ZCZ2NGajNLYUtQTkokN1JgQjJZQ0JmXjJNN1AiXV0jOyluWSNHK3RWSHVMOGsoITliRU1FP2MnTV9KTEc/P1tuTlE/PFF0UFA8LktWVyUsYVtvcVs6cFh1Nlg1SkVRclMjNVpNPFZQXWEpaGEhZUtFIjctIiwoP2BVJn4+ZW5kc3RyZWFtCmVuZG9iago3OCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0MDEKPj4Kc3RyZWFtCkdhc0ljOWhXQWgnWU5VMSUhXi9kZXBbRmAqLFNcPCNWK1oqUWREVWVabWoiTnEhV1hDQnFVbmtmb002SlJHISMrLD1pbD9wPTBZPyNALSp1ODBNZTc3TXBmKmdrOD9KN2YvPystbWIrYjZHX2w3WzVCa0tOKCNpQTZWQFlfQzhVYl9IVTdnVC81UzE/UHI9aE5uc1I6Z08jSCplbXUnYiJxQ0QiXnEuIVpDTWReVGMuMXNORmEkZUY9YSpVOjJqUGhEVEdHPSRuLCdndEZwL1NhTWx1N0RySmFlQ0pNcGBzZzlCOz4pZXJeZiw0SkFESWRIPFlDbiNuKk9nI1JnNjB0TnM8Lz9CUUpzNGFgLGFVYHJhOE0oUF9taXNoamdYbkwyO2BuUmdSOHVmZjZdN2QrQSJ0P1hpNSFoLiw5TkdzKC4qOVM/I2tZSENEZG1cLz8zbFFqZjMnR0JDWyosXm9fa1ZeIltKV3B0Z00vVzEmZE5dI0QsRzNyVykhXSU3a1ppVVErcGFGNCtqYkc6On4+ZW5kc3RyZWFtCmVuZG9iago3OSAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0MDIKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3QF9ALjo3cDgudE85IWckL2xBKmk6YGdrYStvXChAaCszNiE3PUlYbWJmbillLHRLKUFwO0k2JyMkZyF0ODBQJyI3TXBmKmdrOCFAN2VdZXM7K2k8T0tuQF10RlktWFhKamhkNzZpLjRmZWtHVUpBY2gjQF8nZzVcajpudSNhKmRTQEwuQXVLSVk5NGdOb0k+Mzs0UlUqXEJsIy9pbz9oJlw9U1k5VyQuNXJLKGQ7VEY2QiptMzU4ISpuPC8yN21nJ2wmP1g0ZWUrXFxYJk04XilSLSlQZjFMLzpZL1Znbj5NQXNLbmgzUWlgc2pLaF4vNkYqaFlEdHI1VGY+JERENWZmYDpNJE1AaCoybV5qKjlTYyJBLFZoSCM3YStaVipKT2MtKzJbSGUnKnBiOjFQbEtdUzNOYUtbRlFWQW9sMWJETWUxYGZgS0xcNFlpXSduOVZRSjBDY2FRbSpLUTVePWooX1tkWCU+b11UWGRLU1JVI3MkPy9XU2htMUd+PmVuZHN0cmVhbQplbmRvYmoKODAgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggNDAwCj4+CnN0cmVhbQpHYXNJYzloV0FoJ1lOVTElIV4vZGVwW0ZgKixTXDwjVitaKlFkRFVlWm1qIk5xIVdYQzhZRmQ2Zm9NNjpiZTJjUiw9aWw/cD0wWT8jQC0qdTgwTWU3N01wZipnazg/SjdmLz8rLW1iK2I2R19sN1s1QmtLTigjaUE2WVFYJEM4VWJfSFU3aSVNYi0mJCdjbDhvJ1hUOzpFVFIucGNQM09ZUyZZN2RhMTBKM2o1VEMjNyhBaElNNVcuaXBQYWpmVTpLa2onViZNVU8qSnNhTUthXm9jRUFpM2hATzlycVNaaiJTLmE6MyZvUDVXJDJzZF81NDtYIj9fM2QhUDghTis7MGJMNllZcGtnWCdibWkldFRnNi9KOV9uN3JrOTJaI1E7M3BsNHJaZylOKTIvWD9IdE5MJihHIiZIN2FIdXBROiNqIVhbYVojL2JiSFApWDs3MTBqPSZmPmJQUD04QXJxalYhaDB1dVVwXHFLZmVVMmJwL1tmZlJuWT5Ccl4iKkgiTnNGaTZwJmcub1VvNH4+ZW5kc3RyZWFtCmVuZG9iago4MSAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAzOTkKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3QF8/bCMtViU/KiowOjBON2tSWi5KbCVxbyY7OWgqZW9pOFFSTVBecVhDbC5PaiFANTsnX2ZRTlIhTiNvJmtLakI1X1VXRW1yQEFEKSVrW3RldFM9KGRLa09uVnEhWSw5ZW4nY0xeOjs2Oy8oY3AzInFzPVE/R0NZYjJbXzgjQj9SSmtiOSFHKTModF9FYylTQChgMW42PUJuVUM2dWc+YiZOMEBSVCRiaW8rRSFfYi0yU0xvNlRmIWVgQjN1JWs+ckpoRHQmclVJOkJLTTooXzFrTTRyIShyOTU7UFNrc10pOlkpYmskMlghMjRYIUU3YVkzUjFwP1EpWFNLVXROKCgjW0I5RDchYjFsY1xtbVsvTCRjKDtmIUBhV1FMQlRYbiFuMlFXbksrYVNNLXRmMidYdFhQNnJHN0tzaCg6P2dlMUwvYGM2M0FkXWxwI2xnW3UzOmdXcEBQcXNpM1k9PnRaUzgpOXFpRDtaS1dwXGtFTiYiWWVXWk5+PmVuZHN0cmVhbQplbmRvYmoKODIgMCBvYmoKPDwKL0ZpbHRlciBbIC9BU0NJSTg1RGVjb2RlIC9GbGF0ZURlY29kZSBdIC9MZW5ndGggMzk0Cj4+CnN0cmVhbQpHYXNJYzloV0FoJ1lOVTElIV4vZGVwW0dLKixTXDwjVitaKlFkRFVlWm1qIk5xIVdYQ2dIYTprZmU1KkIxUmc8Y0smZjQzP1ooRXRfImZqPSdaKGMhS0wqLGU8QERCZUZBRz5gOGpaKiInVEM+PENUc0JFL0UyZC9qUzVJdDledWgvNjQ5WDdobWZDZlw8XyJITyprZkU7LVxCMmw4Kz1wa20vb0tgTlprQlBfZT1eQGo1Wy9qMGJQLkVtYFpmLWAzREAsUywuQV41QCxmL1BbdEUmNyxucDs+Uyg7TTM4TSMzWUZmQjgrYSwwcUQsRCJyJmQhXy06ZC5nP2RCQ0tLcEJPUXM4KGg5cSojP0ZXQzo6VDNLYUtQTkspc1xgQjJZQ0JRckFnWnJkWWwySGl1ZCVRcXVVcTs9WWEuWzdFaCdpdTZjKDFGcW1dXkFnJi9GKydyLGskaXJtPXJyVmguREFlaDBYcGdJSltcPUNtciokVVtITW8yW0ZYJSNRS0c5JFhSNTpSS34+ZW5kc3RyZWFtCmVuZG9iago4MyAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0MDAKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3QF8/bCNWYWpvVSowOjBON2tSWi5KbCVxbyY7OWgqZW9pNUApQVcmW0FOVmNvOjZtI0o6dSdaTEAsWipOOS09RFEiVm1iXl5XMj5bQTdXJiM9YkY4PFAiJGk2M2ojajFHKl1DaDdxQF9DSz1QVE9NX2JxYC1zXU8rPjIhXUdQcGQ9ZWlQQWtdMnNFUFwjUUlBY3JKdHJsJT5NamBgJ2pBYSklb2U2KnEoIT5hVFpiT1g9LSpENVRdRWJJMjI1P0hebkdLXnFbXzNLKE9vPSZpaUNYWXA9LW1qOWJlRU8kNkBANEMoYjZZZlI0SW8mdEJkWm5SW0NuQHVHPnMtISwtOl8/blcnVjZLZFdELiVHbFI4Oi5yXzBxZF9wRGpJZCpRSCcvTkU1WjtyaVFFUjhQR0dUXV1RZ242NVlMJEhvSSpAKCEtVWkwZyomIWppblFtZ2NyPV4oNmhmV29pP0JEUiQ3U05aVjhWbV43ZSFHVDssQlo2K3VOVW9qfj5lbmRzdHJlYW0KZW5kb2JqCjg0IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5NQo+PgpzdHJlYW0KR2FzSWNiPixyLyZBNzBWN2NGSzdAX0AwLmwmY19tIzopUy1PXD0zJCtPbTg0IjxtYzlbOVpFLzY7X1BoKTotTj03blxzQTpjdChLQC0ySFg5Y3NWUyJyVWstRGZPa0gpJmBCT2Q6Ik11VV9PNStWcW5nYTpDN20tJyxhZD5LZCpEKFwuWUtmZFVqM0ZaNVViaHJNUF03ZG8kKV0qciptZ2RDUik0VGU1aXRHJSlZUT43UUxnU0IjRDJxckU/I2pYTyxLSVkiJFpQJ24oO242O0RoU0FEdFU6UC80aWA9YUljVlFFRE1rKVxfPTVQL01yUSlRbEdROypDXGtKLC5RVTRubExyKlRFblJzWjpgUjVjQ2FuSicpcmc0bUdDKi8tSypUQlEtZStjZl82MV5tUGUkUCM7JSdSPWpHPjc5T0RvVFZFRz80L3UpQCxDTisvPSchODRIYWJWSj9KTSxjIzBsKWtPLSNSZSVMMTo0WjtbXW4+ZEVcNExhZyhwQlVfTmlYODovVW0xfj5lbmRzdHJlYW0KZW5kb2JqCjg1IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDM5Ngo+PgpzdHJlYW0KR2FzSWM5aFdBaCdZTlUxJSFeL2RlcFtHSyosU1w8I1YrWipRZERVZVptaiJOcSFXWENDUzlCYGZlNSpCMVJnPGNLJmY0Mz9aKEV0XyJmaj0nWihjIUtMKixlPEBEQmVGQUc+YDhqWioiJ1RDPjxDVHNCRS9FMmQvalM1SXQ5XnVoLzY0OVYhTjFwRFo5L2huLmtwUlZPW0FjV0Rya2FycFVdLSVZY2thT1lFYCsqPTk5K2stK2NrNixeNj1LO2M5IWNCciQkRiU5RDJBdSxBX0BHRUpFdDcwVCIzXygvJ21WUitAQjpNRWRpLXJSLiUjPFRgSmQ9Wi84YVQtJDBrOC8+NTVvRGUtQzVOTF5RT0BfIzokZFh0JVdHUUdrazosOG1yXjloNyVSWi9ONVwkUThbR1xqTGJgTkUyQT5fYj4kWEliK2Q7Jz9WJGRAcFNLdUw/OEpPZjhQKTo2cSdIKmM4LG5APG83OnEoP2I5bnVIbHBPKElScVdBKEFtWEZWUzpqYDpOPDI/L34+ZW5kc3RyZWFtCmVuZG9iago4NiAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0MDIKPj4Kc3RyZWFtCkdhc0ljYj4sci8mQTcwVjdjRks3QF9AXkNhY1I+TSM6KVMtT1w9MyQrT204NCI8bWM5WzhUX1A2cStAJEFNUScyU0xkKHQ3SWFYTUpAV19eL1YrVzYjLEhzLV5XMj5bQTdUZDg9YzVtPThMInBrMSRsJ1pBc1RdWFlLME9vTDk6bFxcQDtgMCRhTTxbMXI5VzdWZj5kNWlrX1A+ZUhjXC5RI2kvZ1A7ckgjRURbUktjMGBHOydYbyVwOyg3UyNOIjNyNUY2Zm5VM1BSZ1NHZz0kXDpcWXNVWTplYmppK0dAUGArIlJuLDFCWCxXVkk1KHEmYiNLWWsiSk09aTJSNmpHUWxcNkY4RzBzNyFlUllDRlkpSldQbTomZk1pOTNEdT4jMzdeck9hOC5TRE51WlQoYEJfPjY3Q0QnaGl1MCs7OjFRdGpTM14ibExWW2NqKEo/PUVETjNiWERMbEdAJUtpQThIRyYhTmZEKzNQRyxYL1ZZR1Q0R2wkTC5wNG8zYjdybypEMkhdXDErPUsmJFd+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDg3CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDA2MSAwMDAwMCBuIAowMDAwMDAwMTAyIDAwMDAwIG4gCjAwMDAwMDAyMDkgMDAwMDAgbiAKMDAwMDAwMDMyMSAwMDAwMCBuIAowMDAwMDAwNTE2IDAwMDAwIG4gCjAwMDAwMDA3MTEgMDAwMDAgbiAKMDAwMDAwMDkwNiAwMDAwMCBuIAowMDAwMDAxMTAxIDAwMDAwIG4gCjAwMDAwMDEyOTYgMDAwMDAgbiAKMDAwMDAwMTQ5MSAwMDAwMCBuIAowMDAwMDAxNjg3IDAwMDAwIG4gCjAwMDAwMDE4ODMgMDAwMDAgbiAKMDAwMDAwMjA3OSAwMDAwMCBuIAowMDAwMDAyMjc1IDAwMDAwIG4gCjAwMDAwMDI0NzEgMDAwMDAgbiAKMDAwMDAwMjY2NyAwMDAwMCBuIAowMDAwMDAyODYzIDAwMDAwIG4gCjAwMDAwMDMwNTkgMDAwMDAgbiAKMDAwMDAwMzI1NSAwMDAwMCBuIAowMDAwMDAzNDUxIDAwMDAwIG4gCjAwMDAwMDM2NDcgMDAwMDAgbiAKMDAwMDAwMzg0MyAwMDAwMCBuIAowMDAwMDA0MDM5IDAwMDAwIG4gCjAwMDAwMDQyMzUgMDAwMDAgbiAKMDAwMDAwNDQzMSAwMDAwMCBuIAowMDAwMDA0NjI3IDAwMDAwIG4gCjAwMDAwMDQ4MjMgMDAwMDAgbiAKMDAwMDAwNTAxOSAwMDAwMCBuIAowMDAwMDA1MjE1IDAwMDAwIG4gCjAwMDAwMDU0MTEgMDAwMDAgbiAKMDAwMDAwNTYwNyAwMDAwMCBuIAowMDAwMDA1ODAzIDAwMDAwIG4gCjAwMDAwMDU5OTkgMDAwMDAgbiAKMDAwMDAwNjE5NSAwMDAwMCBuIAowMDAwMDA2MzkxIDAwMDAwIG4gCjAwMDAwMDY1ODcgMDAwMDAgbiAKMDAwMDAwNjc4MyAwMDAwMCBuIAowMDAwMDA2OTc5IDAwMDAwIG4gCjAwMDAwMDcxNzUgMDAwMDAgbiAKMDAwMDAwNzM3MSAwMDAwMCBuIAowMDAwMDA3NTY3IDAwMDAwIG4gCjAwMDAwMDc3NjMgMDAwMDAgbiAKMDAwMDAwNzk1OSAwMDAwMCBuIAowMDAwMDA4MTU1IDAwMDAwIG4gCjAwMDAwMDgyMjUgMDAwMDAgbiAKMDAwMDAwODUxOSAwMDAwMCBuIAowMDAwMDA4ODU3IDAwMDAwIG4gCjAwMDAwMDkzNDcgMDAwMDAgbiAKMDAwMDAwOTgzNCAwMDAwMCBuIAowMDAwMDEwMzIyIDAwMDAwIG4gCjAwMDAwMTA4MTIgMDAwMDAgbiAKMDAwMDAxMTI5OSAwMDAwMCBuIAowMDAwMDExNzg0IDAwMDAwIG4gCjAwMDAwMTIyNzIgMDAwMDAgbiAKMDAwMDAxMjc1NyAwMDAwMCBuIAowMDAwMDEzMjQ4IDAwMDAwIG4gCjAwMDAwMTM3MzggMDAwMDAgbiAKMDAwMDAxNDIyNiAwMDAwMCBuIAowMDAwMDE0NzEyIDAwMDAwIG4gCjAwMDAwMTUyMDMgMDAwMDAgbiAKMDAwMDAxNTY5NSAwMDAwMCBuIAowMDAwMDE2MTgzIDAwMDAwIG4gCjAwMDAwMTY2NzggMDAwMDAgbiAKMDAwMDAxNzE2NSAwMDAwMCBuIAowMDAwMDE3NjUzIDAwMDAwIG4gCjAwMDAwMTgxNDEgMDAwMDAgbiAKMDAwMDAxODYzMiAwMDAwMCBuIAowMDAwMDE5MTIyIDAwMDAwIG4gCjAwMDAwMTk2MTUgMDAwMDAgbiAKMDAwMDAyMDEwNiAwMDAwMCBuIAowMDAwMDIwNTk2IDAwMDAwIG4gCjAwMDAwMjEwODIgMDAwMDAgbiAKMDAwMDAyMTU3MCAwMDAwMCBuIAowMDAwMDIyMDYxIDAwMDAwIG4gCjAwMDAwMjI1NTIgMDAwMDAgbiAKMDAwMDAyMzAzOCAwMDAwMCBuIAowMDAwMDIzNTMwIDAwMDAwIG4gCjAwMDAwMjQwMjAgMDAwMDAgbiAKMDAwMDAyNDUxMiAwMDAwMCBuIAowMDAwMDI1MDA1IDAwMDAwIG4gCjAwMDAwMjU0OTYgMDAwMDAgbiAKMDAwMDAyNTk4NiAwMDAwMCBuIAowMDAwMDI2NDcxIDAwMDAwIG4gCjAwMDAwMjY5NjIgMDAwMDAgbiAKMDAwMDAyNzQ0OCAwMDAwMCBuIAowMDAwMDI3OTM1IDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDVhMTE2NWIwNmYwN2EyYzg3ZDBlMDIyMjhiZmI3ZWFiPjw1YTExNjViMDZmMDdhMmM4N2QwZTAyMjI4YmZiN2VhYj5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNDUgMCBSCi9Sb290IDQ0IDAgUgovU2l6ZSA4Nwo+PgpzdGFydHhyZWYKMjg0MjgKJSVFT0YK";
+const MAX_CARDS = 40;
+const DEFAULT_CLASSES = [
+  { id: "math7", name: "7th Math", color: "--c7", order: 1 },
+  { id: "math8", name: "8th Math", color: "--c8", order: 2 },
+  { id: "earth", name: "Earth Science", color: "--cearth", order: 3 },
+  { id: "jhsci", name: "JH Science", color: "--cjh", order: 4 },
+];
+const LETTERS = ["A", "B", "C", "D"];
+
+// ---------- state ----------
+const S = {
+  db: null, downloads: null, online: false, loaded: false,
+  classes: {}, sets: {}, setsFor: null, unsubSets: null,
+  cls: lsGet("cls") || "math8", tab: lsGet("tab") || "sets",
+  openSet: null, q: 0, pick: null, editing: null, lastScan: null, newSet: null,
+  report: { range: "week", chosen: null }, rosterEdit: null, confirm: null, mode: "starting", unsubClasses: null, restore: null, backupText: null,
+};
+function lsGet(k) { try { return localStorage.getItem("cardscan:" + k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem("cardscan:" + k, v); } catch {} }
+
+// ---------- helpers ----------
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const fmtDay = iso => { const d = new Date(iso + "T12:00:00"); return { dow: d.toLocaleDateString(undefined, { weekday: "short" }), day: d.getDate(), long: d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) }; };
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600); }
+function busy(on, text) { $("#busy").hidden = !on; if (text) $("#busyText").textContent = text; }
+function classList() { return Object.values(S.classes).sort((a, b) => (a.order || 99) - (b.order || 99)); }
+function curClass() { return S.classes[S.cls] || null; }
+function students(c = curClass()) { return (c?.students || []).slice().sort((a, b) => a.card - b.card); }
+function setsOfClass() { return Object.values(S.sets).sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0)); }
+
+// Score one set for one student: {correct, answered, graded}
+function scoreSet(set, sid) {
+  let correct = 0, graded = 0, answered = 0;
+  (set.questions || []).forEach((q, i) => {
+    const qa = set.answers?.[i] || {};
+    if (!Object.keys(qa).length) return;          // not asked/scanned yet: leave it out
+    const a = qa[sid];
+    if (a) answered++;
+    if (q.correct && q.correct !== "ANY") { graded++; if (a === q.correct) correct++; }
+    else if (q.correct === "ANY" && a) { /* survey: participation only */ }
+  });
+  return { correct, graded, answered };
+}
+function setPct(set) {
+  let c = 0, g = 0; const sts = students();
+  for (const st of sts) { const s = scoreSet(set, st.id); if (s.answered) { c += s.correct; g += s.graded; } }
+  return g ? Math.round(100 * c / g) : null;
+}
+function qProgress(set, i) { const n = students().length; if (!n) return 0; const a = set.answers?.[i] || {}; return students().filter(s => a[s.id]).length / n; }
+
+// ---------- storage ----------
+// Two places data can live: "cloud" = the page's account storage (owner and Editors),
+// "device" = this browser only (anyone else, e.g. someone who opened a shared link).
+const LKEY = "cardscan:data:v1";
+let DEV = { classes: {}, sets: {} };
+const clone = o => JSON.parse(JSON.stringify(o));
+function devLoad() { try { return JSON.parse(localStorage.getItem(LKEY) || "null") || { classes: {}, sets: {} }; } catch { return null; } }
+function devSave() {
+  try { localStorage.setItem(LKEY, JSON.stringify(DEV)); return true; }
+  catch { if (S.mode !== "memory") { S.mode = "memory"; setSync("Not saving"); render(); } toast("This browser won't keep data. Download a backup before closing the page."); return false; }
+}
+function devAvailable() { try { const k = "cardscan:probe"; localStorage.setItem(k, "1"); localStorage.removeItem(k); return true; } catch { return false; } }
+const writeChains = {};
+function queueWrite(path, fn) {
+  const prev = writeChains[path] || Promise.resolve();
+  const next = prev.then(fn).catch(e => {
+    console.error(e);
+    if (e?.code === "invalid_argument" || e?.code === "not_granted" || e?.code === "revoked") { goDevice(); toast("Saving on this phone instead. See the note at the top."); return; }
+    toast(e?.code === "quota_exceeded" ? "Storage is full — delete old bell work sets." : "Couldn't save. Check your connection and try again.");
+  });
+  writeChains[path] = next; return next;
+}
+function goDevice() {
+  if (S.mode === "device" || S.mode === "memory") return;
+  if (S.unsubSets) { S.unsubSets(); S.unsubSets = null; }
+  if (S.unsubClasses) { S.unsubClasses(); S.unsubClasses = null; }
+  const saved = devAvailable() ? devLoad() : null;
+  S.mode = saved ? "device" : "memory";
+  DEV = saved || { classes: {}, sets: {} };
+  // keep anything already typed this visit
+  for (const c of Object.values(S.classes)) if ((c.students || []).length || !DEV.classes[c.id]) DEV.classes[c.id] = clone(c);
+  if (Object.keys(S.sets).length) DEV.sets[S.cls] = { ...(DEV.sets[S.cls] || {}), ...clone(S.sets) };
+  if (S.mode === "device") devSave();
+  loadDeviceClasses(); subscribeSets();
+  setSync(S.mode === "device" ? "Saved on this phone" : "Not saving");
+  render();
+}
+function loadDeviceClasses() {
+  const next = {};
+  for (const c of DEFAULT_CLASSES) next[c.id] = { ...c, students: [] };
+  for (const [id, c] of Object.entries(DEV.classes || {})) next[id] = { ...next[id], ...clone(c), id };
+  S.classes = next; S.loaded = true;
+  if (!S.classes[S.cls]) S.cls = "math8";
+}
+function saveClass(c) {
+  S.classes[c.id] = c; render();
+  if (S.mode === "cloud") { const body = clone(c); return queueWrite("classes/" + c.id, () => S.db.doc("classes/" + c.id).set(body)); }
+  if (S.mode === "device") { DEV.classes[c.id] = clone(c); devSave(); }
+}
+function saveSet(set) {
+  set.updated = Date.now(); S.sets[set.id] = set; render();
+  if (S.mode === "cloud") { const body = clone(set), path = `classes/${S.cls}/sets/${set.id}`; return queueWrite(path, () => S.db.doc(path).set(body)); }
+  if (S.mode === "device") { (DEV.sets[S.cls] ||= {})[set.id] = clone(set); devSave(); }
+}
+function deleteSet(set) {
+  delete S.sets[set.id]; S.openSet = null; render();
+  if (S.mode === "cloud") { const path = `classes/${S.cls}/sets/${set.id}`; queueWrite(path, () => S.db.doc(path).delete()); }
+  if (S.mode === "device") { if (DEV.sets[S.cls]) delete DEV.sets[S.cls][set.id]; devSave(); }
+}
+function subscribeSets() {
+  if (S.unsubSets) { S.unsubSets(); S.unsubSets = null; }
+  S.sets = {}; S.setsFor = S.cls;
+  if (S.mode === "device") { S.sets = clone(DEV.sets[S.cls] || {}); return; }
+  if (S.mode !== "cloud") return;
+  S.unsubSets = S.db.collection(`classes/${S.cls}/sets`).onSnapshot(snap => {
+    const next = {};
+    for (const d of snap.docs) next[d.id] = { ...clone(d.data()), id: d.id };
+    S.sets = next; render();
+  }, e => { console.error(e); setSync("Sync stopped — reload to reconnect"); });
+}
+function setSync(t) { $("#sync").textContent = t; }
+
+async function boot() {
+  for (const c of DEFAULT_CLASSES) S.classes[c.id] = { ...c, students: [] };
+  render();
+  const use = n => window.claude?.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+  const [db, downloads, user] = await Promise.all([use("db"), use("downloads"), use("user")]);
+  S.downloads = downloads;
+  let cloudOK = !!db;
+  if (db && user) { try { cloudOK = await user.canEdit(); } catch { cloudOK = true; } }
+  if (!cloudOK) { S.mode = "cloud-pending"; goDevice(); return; }
+  S.mode = "cloud"; S.db = db;
+  const timer = setTimeout(() => { if (!S.loaded) { setSync("Can't reach saved data yet"); } }, 10000);
+  S.unsubClasses = db.collection("classes").onSnapshot(snap => {
+    clearTimeout(timer);
+    const next = {};
+    for (const c of DEFAULT_CLASSES) next[c.id] = { ...c, students: [] };
+    for (const d of snap.docs) next[d.id] = { ...next[d.id], ...clone(d.data()), id: d.id };
+    S.classes = next; S.loaded = true;
+    setSync(snap.metadata.fromCache ? "Saved (syncing…)" : "Saved to your account");
+    if (!S.classes[S.cls]) S.cls = "math8";
+    render();
+  }, e => { console.error(e); clearTimeout(timer); setSync("Sync stopped — reload to reconnect"); });
+  subscribeSets();
+}
+
+// ---------- backup ----------
+async function buildBackup() {
+  const out = { app: "stcs-card-scan", version: 1, exported: new Date().toISOString(), classes: {}, sets: {} };
+  for (const c of Object.values(S.classes)) out.classes[c.id] = clone(c);
+  if (S.mode === "cloud") {
+    for (const id of Object.keys(S.classes)) {
+      const snap = await S.db.collection(`classes/${id}/sets`).get();
+      out.sets[id] = {}; for (const d of snap.docs) out.sets[id][d.id] = { ...clone(d.data()), id: d.id };
+    }
+  } else {
+    out.sets = clone(DEV.sets || {});
+    out.sets[S.cls] = { ...(out.sets[S.cls] || {}), ...clone(S.sets) };
+  }
+  return out;
+}
+async function downloadBackup() {
+  try {
+    busy(true, "Making backup…");
+    const b = await buildBackup(); const text = JSON.stringify(b);
+    busy(false);
+    if (S.downloads) return offerFile(`STCS_Card_Scan_backup_${todayISO()}.json`, text);
+    S.backupText = text; render(); toast("Copy the backup text below and save it somewhere safe.");
+  } catch (e) { busy(false); console.error(e); toast("Couldn't make the backup. Try again."); }
+}
+async function readRestore(file) {
+  if (!file) return;
+  try {
+    const b = JSON.parse(await file.text());
+    if (b?.app !== "stcs-card-scan" || !b.classes) throw new Error();
+    S.restore = b; render();
+  } catch { toast("That file isn't a Card Scan backup."); }
+}
+async function applyRestore() {
+  const b = S.restore; if (!b) return;
+  S.restore = null; busy(true, "Restoring…");
+  try {
+    if (S.mode === "cloud") {
+      for (const [id, c] of Object.entries(b.classes)) { const body = clone(c); delete body.id; await queueWrite("classes/" + id, () => S.db.doc("classes/" + id).set(body)); }
+      for (const [cid, sets] of Object.entries(b.sets || {})) for (const [sid, s] of Object.entries(sets)) { const body = clone(s); delete body.id; const path = `classes/${cid}/sets/${sid}`; await queueWrite(path, () => S.db.doc(path).set(body)); }
+    } else {
+      for (const [id, c] of Object.entries(b.classes)) DEV.classes[id] = clone(c);
+      for (const [cid, sets] of Object.entries(b.sets || {})) DEV.sets[cid] = { ...(DEV.sets[cid] || {}), ...clone(sets) };
+      if (S.mode === "device") devSave();
+      loadDeviceClasses();
+    }
+    subscribeSets(); toast("Backup restored");
+  } catch (e) { console.error(e); toast("Restore stopped partway. Try again."); }
+  finally { busy(false); render(); }
+}
+
+// ---------- card detection ----------
+let detector = null;
+function getDetector() {
+  if (!window.AR) throw new Error("The card reader didn't load. Check your connection and reload the page.");
+  if (!detector) { AR.DICTIONARIES.STCS_CARDS = { nBits: 16, tau: 2, codeList: CODES }; detector = new AR.Detector({ dictionaryName: "STCS_CARDS", maxHammingDistance: 2 }); }
+  return detector;
+}
+// Which letter is on top: angle of the card's A edge, measured from straight up.
+function readAngle(c) {
+  const cx = (c[0].x + c[1].x + c[2].x + c[3].x) / 4, cy = (c[0].y + c[1].y + c[2].y + c[3].y) / 4;
+  const mx = (c[0].x + c[1].x) / 2 - cx, my = (c[0].y + c[1].y) / 2 - cy;
+  return Math.atan2(mx, -my) * 180 / Math.PI;
+}
+function angleToLetter(ang, turn = 0) {
+  const k = Math.round(ang / 90), dev = Math.abs(ang - k * 90);
+  if (dev > 32) return null;
+  const q = (((k + turn) % 4) + 4) % 4;
+  return ["A", "D", "C", "B"][q];
+}
+function detectMulti(canvas) {
+  const det = getDetector(), W = canvas.width, H = canvas.height, best = {};
+  for (const f of [1, 0.5, 0.25]) {
+    const w = Math.round(W * f), h = Math.round(H * f);
+    if (Math.min(w, h) < 300) break;
+    let data;
+    if (f === 1) data = canvas.getContext("2d").getImageData(0, 0, w, h);
+    else { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(canvas, 0, 0, w, h); data = x.getImageData(0, 0, w, h); }
+    for (const m of det.detect(data)) {
+      if (m.id < 0 || m.id >= MAX_CARDS) continue;
+      const side = Math.hypot(m.corners[0].x - m.corners[1].x, m.corners[0].y - m.corners[1].y);
+      const score = m.hammingDistance * 100 + Math.abs(Math.log(side / 80));
+      if (!best[m.id] || score < best[m.id].score) best[m.id] = { score, card: m.id + 1, corners: m.corners.map(p => ({ x: p.x / f, y: p.y / f })) };
+    }
+  }
+  return Object.values(best).map(m => ({ card: m.card, corners: m.corners, angle: readAngle(m.corners) }));
+}
+async function fileToCanvas(file) {
+  let src;
+  try { src = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+  catch { src = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("That file isn't a photo this page can read.")); im.src = URL.createObjectURL(file); }); }
+  const w0 = src.width, h0 = src.height, k = Math.min(1, 4200 / Math.max(w0, h0));
+  const c = document.createElement("canvas"); c.width = Math.round(w0 * k); c.height = Math.round(h0 * k);
+  c.getContext("2d", { willReadFrequently: true }).drawImage(src, 0, 0, c.width, c.height);
+  return c;
+}
+async function handlePhoto(file) {
+  const set = S.sets[S.openSet]; if (!file || !set) return;
+  busy(true, "Reading cards…");
+  await new Promise(r => setTimeout(r, 40));
+  try {
+    const canvas = await fileToCanvas(file);
+    await new Promise(r => setTimeout(r, 10));
+    const found = detectMulti(canvas);
+    const byCard = Object.fromEntries(students().map(s => [s.card, s]));
+    const scan = { q: S.q, turn: 0, items: found, canvas, at: Date.now() };
+    S.lastScan = scan;
+    applyScan(set, scan);
+  } catch (e) { console.error(e); toast(e.message || "Couldn't read that photo."); }
+  finally { busy(false); }
+}
+function applyScan(set, scan, prevTurn = null) {
+  const byCard = Object.fromEntries(students().map(s => [s.card, s]));
+  const qa = { ...(set.answers?.[scan.q] || {}) };
+  const tilted = [], unknown = [];
+  let read = 0;
+  for (const it of scan.items) {
+    const st = byCard[it.card];
+    if (prevTurn !== null && st && qa[st.id] === angleToLetter(it.angle, prevTurn)) delete qa[st.id];
+    const L = angleToLetter(it.angle, scan.turn);
+    if (!st) { unknown.push(it.card); continue; }
+    if (!L) { tilted.push(st.name); continue; }
+    qa[st.id] = L; read++;
+  }
+  scan.summary = { read, tilted, unknown, total: scan.items.length };
+  set.answers = { ...(set.answers || {}), [scan.q]: qa };
+  saveSet(set);
+}
+
+// ---------- downloads ----------
+async function offerFile(filename, data) {
+  if (!S.downloads) { toast("Downloads need a signed-in claude.ai account in this view."); return; }
+  try { await S.downloads.save({ filename, data }); toast("Saved " + filename); }
+  catch (e) { if (e?.code !== "declined") toast(e?.code === "rate_limited" ? "A save is already waiting — try again in a moment." : "Couldn't save the file."); }
+}
+function csvCell(v) { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function toCSV(rows) { return rows.map(r => r.map(csvCell).join(",")).join("\r\n"); }
+
+// ---------- rendering ----------
+function render() {
+  // chips
+  const chips = $("#chips");
+  chips.innerHTML = classList().map(c => `<button class="chip" data-cls="${c.id}" aria-pressed="${c.id === S.cls}"><i style="background:var(${c.color || "--c8"})"></i>${esc(c.name)}</button>`).join("");
+  for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === S.tab));
+  const v = $("#view");
+  const keepScroll = window.scrollY;
+  if (S.tab === "sets") v.innerHTML = S.openSet && S.sets[S.openSet] ? viewSet() : (S.newSet ? viewNewSet() : viewSets());
+  else if (S.tab === "roster") v.innerHTML = viewRoster();
+  else if (S.tab === "reports") v.innerHTML = viewReports();
+  else v.innerHTML = viewCards();
+  if (S.tab === "sets" && S.openSet && S.lastScan && S.lastScan.q === S.q) drawPreview();
+  window.scrollTo(0, keepScroll);
+}
+function banner() {
+  if (S.mode === "device") return `<div class="note"><b>Saving on this phone only.</b> Rosters and scores stay in this browser. Use the same phone and browser each time, and download a backup each week on the Cards tab.</div>`;
+  if (S.mode === "memory") return `<div class="note"><b>Not saving.</b> This browser is blocking storage (a private window, maybe). Download a backup on the Cards tab before you close the page.</div>`;
+  return "";
+}
+
+function viewSets() {
+  const c = curClass(), list = setsOfClass(), n = students().length;
+  const items = list.map(s => {
+    const d = fmtDay(s.date || todayISO()), p = setPct(s);
+    const done = (s.questions || []).filter((_, i) => qProgress(s, i) > 0).length;
+    return `<button class="setitem" data-open="${s.id}">
+      <div class="datebox"><div class="d">${esc(d.dow)}</div><div class="n">${d.day}</div></div>
+      <div><div class="t">${esc(s.title || "Bell work")}</div><div class="m">${(s.questions || []).length} questions · ${done} scanned</div></div>
+      <div class="pct">${p === null ? "—" : p + "%"}<small>class avg</small></div></button>`;
+  }).join("");
+  return `${banner()}
+  <div class="row spread"><div><h2>${esc(c?.name || "")} bell work</h2><p class="sub">${n} student${n === 1 ? "" : "s"} on the roster</p></div>
+  <button class="btn primary" data-act="newset">+ New set</button></div>
+  ${n === 0 ? `<div class="note info">Add your students on the <b>Roster</b> tab first, so scanned cards match names.</div>` : ""}
+  ${list.length ? `<div class="setlist">${items}</div>` : `<div class="panel empty"><b>No bell work yet</b><span>Make a set for today: choose how many questions and the correct letters. Then scan the room for each question.</span><button class="btn primary" data-act="newset">+ New set</button></div>`}`;
+}
+
+function viewNewSet() {
+  const ns = S.newSet;
+  const qs = ns.questions.map((q, i) => `
+    <div class="panel" style="gap:8px">
+      <div class="row spread"><h3>Question ${i + 1}</h3>${ns.questions.length > 1 ? `<button class="btn sm ghost danger" data-act="nsdel" data-i="${i}">Remove</button>` : ""}</div>
+      <label class="f">Question text (optional)<input type="text" id="nsq${i}" data-ns="text" data-i="${i}" value="${esc(q.text)}" placeholder="e.g. Where is the image of (6, −4)?"></label>
+      <div class="row"><span class="sub">Correct answer</span><div class="letters">${LETTERS.map(L => `<button class="letter" data-act="nscorrect" data-i="${i}" data-l="${L}" aria-pressed="${q.correct === L}">${L}</button>`).join("")}<button class="letter any" data-act="nscorrect" data-i="${i}" data-l="ANY" aria-pressed="${q.correct === "ANY"}">Survey</button></div></div>
+    </div>`).join("");
+  return `<div class="row spread"><h2>New bell work set</h2><button class="btn ghost" data-act="nscancel">Cancel</button></div>
+  <div class="panel">
+    <div class="grid2"><label class="f">Title<input type="text" id="nsTitle" data-ns="title" value="${esc(ns.title)}"></label>
+    <label class="f">Date<input type="date" id="nsDate" data-ns="date" value="${esc(ns.date)}"></label></div>
+    <details><summary class="sub" style="cursor:pointer">Paste questions instead</summary>
+      <div style="display:grid;gap:8px;margin-top:8px">
+        <p class="sub">Paste numbered questions with a <b>CORRECT: B</b> line under each, like the Plickers text file. Or paste just the letters, like <b>B A C A</b>.</p>
+        <textarea id="nsPaste" placeholder="1. Which point is the center of dilation?&#10;   A. point A&#10;   CORRECT: C"></textarea>
+        <button class="btn" data-act="nsparse">Fill in from pasted text</button>
+      </div></details>
+  </div>
+  ${qs}
+  <div class="row"><button class="btn" data-act="nsadd">+ Add question</button></div>
+  <button class="scanbtn" data-act="nssave">Save set</button>
+  <p class="sub">“Survey” questions record answers without a right or wrong — use them for preview questions you don't want to grade.</p>`;
+}
+
+const CAM = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.6"/></svg>`;
+function viewSet() {
+  const set = S.sets[S.openSet], qs = set.questions || [], q = qs[S.q] || qs[0], sts = students();
+  if (S.q >= qs.length) S.q = 0;
+  const qa = set.answers?.[S.q] || {};
+  const answered = sts.filter(s => qa[s.id]).length;
+  const correctN = q?.correct && q.correct !== "ANY" ? sts.filter(s => qa[s.id] === q.correct).length : null;
+  const d = fmtDay(set.date || todayISO());
+  const pills = qs.map((x, i) => `<button class="qpill" data-act="q" data-i="${i}" aria-pressed="${i === S.q}">Q${i + 1}<span class="bar"><span style="width:${Math.round(qProgress(set, i) * 100)}%"></span></span></button>`).join("");
+  const sm = S.lastScan && S.lastScan.q === S.q ? S.lastScan.summary : null;
+  const scanNote = sm ? `<div class="note">
+      <b>Read ${sm.read} card${sm.read === 1 ? "" : "s"}</b> from this photo.
+      ${sm.tilted.length ? `<br>Tilted too far to read: ${sm.tilted.map(esc).join(", ")}. Have them hold the card straight, then scan again.` : ""}
+      ${sm.unknown.length ? `<br>Card${sm.unknown.length > 1 ? "s" : ""} ${sm.unknown.join(", ")} ${sm.unknown.length > 1 ? "aren't" : "isn't"} on this roster.` : ""}
+      ${sm.total === 0 ? `<br>No cards found. Get closer or turn on more light, and keep the whole card in the photo.` : ""}
+      <div class="row" style="margin-top:8px"><button class="btn sm" data-act="turn">Photo was sideways? Turn answers ↻</button></div>
+    </div>` : "";
+  const rows = sts.map(s => {
+    const a = qa[s.id];
+    const cls = !a ? "" : q?.correct === "ANY" ? "any" : q?.correct ? (a === q.correct ? "ok" : "bad") : "";
+    const open = S.pick === s.id;
+    return `<div class="srow"><span class="card">#${s.card}</span><span class="name">${esc(s.name)}</span>
+      <button class="ans ${cls}" data-act="pick" data-sid="${s.id}" aria-label="${esc(s.name)}: ${a || "no answer"}. Tap to change.">${a || "—"}</button>
+      ${open ? `<div class="picker">${LETTERS.map(L => `<button class="letter" data-act="setans" data-sid="${s.id}" data-l="${L}" aria-pressed="${a === L}">${L}</button>`).join("")}<button class="btn sm" data-act="setans" data-sid="${s.id}" data-l="">Clear</button></div>` : ""}</div>`;
+  }).join("");
+  return `<div class="row spread"><button class="btn ghost sm" data-act="back">← All sets</button>
+    <div class="row"><button class="btn sm" data-act="editset">${S.editing ? "Done" : "Edit"}</button></div></div>
+  <div><h2>${esc(set.title || "Bell work")}</h2><p class="sub">${esc(d.long)}</p></div>
+  ${S.editing ? viewEditSet(set) : ""}
+  <div class="qpills" role="group" aria-label="Question">${pills}</div>
+  <div class="panel">
+    <div class="row spread"><h3>Question ${S.q + 1}</h3>
+      <div class="letters">${LETTERS.map(L => `<button class="letter" data-act="correct" data-l="${L}" aria-pressed="${q?.correct === L}" aria-label="Correct answer ${L}">${L}</button>`).join("")}<button class="letter any" data-act="correct" data-l="ANY" aria-pressed="${q?.correct === "ANY"}">Survey</button></div></div>
+    ${q?.text ? `<p style="margin:0;font-size:18px">${esc(q.text)}</p>` : ""}
+    ${!q?.correct ? `<div class="note">Tap the correct letter above so answers can be marked right or wrong.</div>` : ""}
+    <div class="stats"><div class="stat"><div class="v">${answered}/${sts.length}</div><div class="l">Answered</div></div>
+      <div class="stat"><div class="v">${correctN === null ? "—" : correctN}</div><div class="l">Correct</div></div>
+      <div class="stat"><div class="v">${correctN === null || !answered ? "—" : Math.round(100 * correctN / answered) + "%"}</div><div class="l">Of answered</div></div></div>
+    <button class="scanbtn" data-act="scan" ${sts.length ? "" : "disabled"}>${CAM} Scan room</button>
+    <div class="row"><button class="btn sm" data-act="pickphoto" ${sts.length ? "" : "disabled"}>Use a photo you already took</button>
+      ${S.q < qs.length - 1 ? `<button class="btn sm dark" data-act="q" data-i="${S.q + 1}">Next: Q${S.q + 2} →</button>` : ""}</div>
+    ${scanNote}
+    ${sm ? `<div class="photo"><canvas id="preview"></canvas></div>` : ""}
+  </div>
+  ${sts.length ? `<div class="roster" aria-label="Answers">${rows}</div><p class="sub">Tap an answer to change it by hand. A new photo overwrites only the cards it reads.</p>` : `<div class="note info">No students on the roster yet. Add them on the Roster tab.</div>`}`;
+}
+function viewEditSet(set) {
+  const confirmDel = S.confirm === "delset";
+  return `<div class="panel">
+    <div class="grid2"><label class="f">Title<input type="text" id="esTitle" data-es="title" value="${esc(set.title)}"></label>
+    <label class="f">Date<input type="date" id="esDate" data-es="date" value="${esc(set.date)}"></label></div>
+    <label class="f">Question ${S.q + 1} text<input type="text" id="esQ" data-es="qtext" value="${esc(set.questions[S.q]?.text || "")}"></label>
+    <div class="row"><button class="btn sm" data-act="esadd">+ Add question</button>
+      ${set.questions.length > 1 ? `<button class="btn sm danger" data-act="esdelq">Remove Q${S.q + 1}</button>` : ""}
+      <button class="btn sm" data-act="esclearq">Clear Q${S.q + 1} answers</button></div>
+    ${confirmDel ? `<div class="note">Delete this set and all its answers? This can't be undone. <div class="row" style="margin-top:8px"><button class="btn sm danger" data-act="delset2">Delete set</button><button class="btn sm" data-act="cancelconfirm">Keep it</button></div></div>`
+      : `<div><button class="btn sm danger" data-act="delset">Delete set…</button></div>`}
+  </div>`;
+}
+function drawPreview() {
+  const cv = $("#preview"), sc = S.lastScan; if (!cv || !sc?.canvas) return;
+  const k = Math.min(1, 900 / sc.canvas.width); cv.width = Math.round(sc.canvas.width * k); cv.height = Math.round(sc.canvas.height * k);
+  const x = cv.getContext("2d"); x.drawImage(sc.canvas, 0, 0, cv.width, cv.height);
+  const byCard = Object.fromEntries(students().map(s => [s.card, s]));
+  const set = S.sets[S.openSet]; const correct = set?.questions?.[sc.q]?.correct;
+  for (const it of sc.items) {
+    const L = angleToLetter(it.angle, sc.turn), st = byCard[it.card];
+    const col = !st || !L ? "#f3c623" : correct === "ANY" || !correct ? "#4aa3ff" : L === correct ? "#2ecc71" : "#ff5a3c";
+    x.lineWidth = Math.max(2, cv.width / 300); x.strokeStyle = col; x.beginPath();
+    it.corners.forEach((p, i) => (i ? x.lineTo : x.moveTo).call(x, p.x * k, p.y * k)); x.closePath(); x.stroke();
+    const cxp = it.corners.reduce((a, p) => a + p.x, 0) / 4 * k, cyp = it.corners.reduce((a, p) => a + p.y, 0) / 4 * k;
+    const label = (st ? st.name.split(" ")[0] : "#" + it.card) + " " + (L || "?");
+    x.font = `bold ${Math.max(12, cv.width / 55)}px system-ui, sans-serif`; const w = x.measureText(label).width;
+    x.fillStyle = "rgba(0,0,0,.7)"; x.fillRect(cxp - w / 2 - 4, cyp - 12, w + 8, 22); x.fillStyle = col; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(label, cxp, cyp);
+  }
+}
+
+function viewRoster() {
+  const c = curClass(), sts = students(), used = new Set(sts.map(s => s.card));
+  const rows = sts.map(s => {
+    if (S.rosterEdit === s.id) return `<div class="srow" style="grid-template-columns:1fr">
+      <div class="grid2"><label class="f">Name<input type="text" id="reName" value="${esc(s.name)}"></label>
+      <label class="f">Card number<select id="reCard">${Array.from({ length: MAX_CARDS }, (_, i) => i + 1).filter(n => n === s.card || !used.has(n)).map(n => `<option value="${n}" ${n === s.card ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>
+      <div class="row"><button class="btn sm primary" data-act="resave" data-sid="${s.id}">Save</button><button class="btn sm" data-act="recancel">Cancel</button>
+      ${S.confirm === "rm:" + s.id ? `<span class="sub">Remove ${esc(s.name)}? Past answers stay in old sets but won't show.</span><button class="btn sm danger" data-act="rm2" data-sid="${s.id}">Remove</button>` : `<button class="btn sm danger" data-act="rm" data-sid="${s.id}">Remove…</button>`}</div></div>`;
+    return `<div class="srow"><span class="card">#${s.card}</span><span class="name">${esc(s.name)}</span><button class="btn sm" data-act="redit" data-sid="${s.id}">Edit</button></div>`;
+  }).join("");
+  return `${banner()}
+  <div><h2>${esc(c?.name || "")} roster</h2><p class="sub">${sts.length} of ${MAX_CARDS} cards assigned. Each student keeps the same card number every day.</p></div>
+  <div class="panel">
+    <h3>Add students</h3>
+    <label class="f">One name per line — paste from your gradebook<textarea id="addNames" placeholder="First Last&#10;First Last"></textarea></label>
+    <div class="row"><button class="btn primary" data-act="addnames">Add to roster</button><span class="sub">Cards are assigned in order, starting with the lowest free number.</span></div>
+  </div>
+  ${sts.length ? `<div class="roster">${rows}</div>` : `<div class="panel empty"><b>No students yet</b><span>Paste your class list above. Names stay in your account — only you can see them.</span></div>`}
+  <div class="panel"><h3>Class name</h3><div class="row" style="flex-wrap:nowrap"><input type="text" id="className" value="${esc(c?.name || "")}"><button class="btn" data-act="rename">Rename</button></div></div>`;
+}
+
+function weekBounds(offset = 0) {
+  const d = new Date(todayISO() + "T12:00:00"); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow + offset * 7);
+  const iso = x => { const y = new Date(x); y.setMinutes(y.getMinutes() - y.getTimezoneOffset()); return y.toISOString().slice(0, 10); };
+  const end = new Date(d); end.setDate(end.getDate() + 6); return [iso(d), iso(end)];
+}
+function reportSets() {
+  const all = setsOfClass().slice().reverse(); const r = S.report;
+  if (r.range === "pick" && r.chosen) return all.filter(s => r.chosen.includes(s.id));
+  if (r.range === "all") return all;
+  const [a, b] = weekBounds(r.range === "last" ? -1 : 0);
+  return all.filter(s => s.date >= a && s.date <= b);
+}
+function viewReports() {
+  const sets = reportSets(), sts = students(), r = S.report;
+  const rangeBtns = [["week", "This week"], ["last", "Last week"], ["all", "All"], ["pick", "Choose…"]].map(([k, l]) => `<button class="btn sm ${r.range === k ? "dark" : ""}" data-act="range" data-r="${k}">${l}</button>`).join("");
+  const picker = r.range === "pick" ? `<div class="panel" style="gap:0">${setsOfClass().map(s => `<label class="check"><input type="checkbox" data-act="choose" value="${s.id}" ${r.chosen?.includes(s.id) ? "checked" : ""}> ${esc(fmtDay(s.date).long)} · ${esc(s.title)}</label>`).join("") || `<span class="sub">No sets yet.</span>`}</div>` : "";
+  if (!sets.length || !sts.length) return `<div class="row spread"><h2>Reports</h2></div><div class="row">${rangeBtns}</div>${picker}
+    <div class="panel empty"><b>Nothing to report yet</b><span>${!sts.length ? "Add students on the Roster tab." : "No bell work sets in this range. Try “All”."}</span></div>`;
+  let totC = 0, totG = 0;
+  const body = sts.map(st => {
+    let c = 0, g = 0;
+    const cells = sets.map(s => { const x = scoreSet(s, st.id); if (!x.answered) return `<td class="sub">absent</td>`; c += x.correct; g += x.graded; return x.graded ? `<td class="${x.correct / x.graded < 0.6 ? "lo" : ""}">${x.correct}/${x.graded}</td>` : `<td>✓</td>`; }).join("");
+    totC += c; totG += g;
+    const pct = g ? Math.round(100 * c / g) : null;
+    return `<tr><td class="n">${esc(st.name)}</td>${cells}<td class="${pct !== null && pct < 60 ? "lo" : ""}"><b>${pct === null ? "—" : pct + "%"}</b></td><td><b>${pct === null ? "—" : (pct / 10).toFixed(1)}</b></td></tr>`;
+  }).join("");
+  const avgRow = `<tr class="avg"><td class="n">Class</td>${sets.map(s => { const p = setPct(s); return `<td>${p === null ? "—" : p + "%"}</td>`; }).join("")}<td>${totG ? Math.round(100 * totC / totG) + "%" : "—"}</td><td></td></tr>`;
+  const head = `<tr><th class="n">Student</th>${sets.map(s => { const d = fmtDay(s.date); return `<th>${esc(d.dow)} ${d.day}</th>`; }).join("")}<th>Overall</th><th>/10</th></tr>`;
+  // per-question accuracy, to spot what to reteach
+  const qrows = sets.map(s => {
+    const cells = (s.questions || []).map((q, i) => {
+      if (!q.correct || q.correct === "ANY") return `<span class="ans">Q${i + 1} —</span>`;
+      const a = s.answers?.[i] || {}; const ans = sts.filter(x => a[x.id]); if (!ans.length) return `<span class="ans">Q${i + 1} —</span>`;
+      const p = Math.round(100 * ans.filter(x => a[x.id] === q.correct).length / ans.length);
+      return `<span class="ans ${p >= 70 ? "ok" : "bad"}">Q${i + 1} ${p}%</span>`;
+    }).join(" ");
+    return `<div class="check" style="flex-wrap:wrap"><b style="min-width:110px">${esc(fmtDay(s.date).long)}</b>${cells}</div>`;
+  }).join("");
+  return `<div class="row spread"><h2>Reports</h2></div>
+  <div class="row">${rangeBtns}</div>${picker}
+  <div class="tablewrap"><table><thead>${head}</thead><tbody>${body}${avgRow}</tbody></table></div>
+  <p class="sub">Only questions you've scanned count. A student with no answers that day is marked absent and left out; a missed question on a day they were there counts as wrong. Survey questions count as participation only. Scores under 60% are marked.</p>
+  <div class="panel" style="gap:0"><h3 style="margin-bottom:6px">Questions to reteach</h3>${qrows}</div>
+  <div class="row"><button class="btn primary" data-act="csvsum">Download scores (CSV)</button><button class="btn" data-act="csvdet">Download every answer (CSV)</button></div>`;
+}
+
+function viewCards() {
+  return `<div><h2>Answer cards</h2><p class="sub">One set of 40 cards works for every class. Each roster decides which student holds which number.</p></div>
+  <div class="panel">
+    <button class="scanbtn" data-act="cardspdf">Download cards 1–40 (PDF)</button>
+    <ol class="steps">
+      <li>Print single-sided, one card per page. Cardstock lasts longer; don't laminate glossy (glare hides the pattern).</li>
+      <li>Hand each student the card with their roster number. Keep a class set in a folder.</li>
+      <li>To answer, students turn the card so their letter is <b>at the top</b>, and hold it up facing you.</li>
+    </ol>
+  </div>
+  <div class="panel"><h3>Scanning tips</h3>
+    <ul class="steps">
+      <li>Stand at the front and take one photo that shows every card. Hold the phone level — the app reads "up" from the photo.</li>
+      <li>Good light matters more than distance. Turn on the lights; avoid a bright window behind the students.</li>
+      <li>Missed a few? Take a second photo. It adds the cards it reads without erasing the others.</li>
+      <li>Cards tilted more than about a third of a turn are skipped rather than guessed. The app tells you whose.</li>
+      <li>If the camera doesn't open from the Claude app, open this page in Chrome, or use “Use a photo you already took.”</li>
+    </ul></div>
+  <div class="panel"><h3>Backup</h3>
+    <p class="sub" style="margin:0">${S.mode === "cloud" ? "Your data is saved to your account and syncs between devices. A backup file lets you move it to another device or keep a copy." : "Your data is saved in this browser only. Download a backup each week, and restore it if you switch phones or clear your browser."}</p>
+    <div class="row"><button class="btn primary" data-act="backup">Download backup</button><button class="btn" data-act="restore">Restore from backup…</button></div>
+    ${S.restore ? `<div class="note">Backup from ${esc(new Date(S.restore.exported).toLocaleString())}: ${Object.keys(S.restore.classes).length} classes, ${Object.values(S.restore.classes).reduce((a, c) => a + (c.students || []).length, 0)} students, ${Object.values(S.restore.sets || {}).reduce((a, s) => a + Object.keys(s).length, 0)} bell work sets. Restoring replaces rosters and any sets with the same name in this backup; other sets stay.
+      <div class="row" style="margin-top:8px"><button class="btn sm primary" data-act="restore2">Restore</button><button class="btn sm" data-act="restorecancel">Cancel</button></div></div>` : ""}
+    ${S.backupText ? `<label class="f">Backup text (select all and copy into a note or email to yourself)<textarea id="backupText" readonly>${esc(S.backupText)}</textarea></label><button class="btn sm" data-act="copybackup">Copy</button>` : ""}
+  </div>`;
+}
+
+// ---------- events ----------
+document.addEventListener("click", async e => {
+  const chip = e.target.closest("[data-cls]");
+  if (chip) { S.cls = chip.dataset.cls; lsSet("cls", S.cls); S.openSet = null; S.newSet = null; S.lastScan = null; S.pick = null; S.report.chosen = null; subscribeSets(); render(); return; }
+  const tab = e.target.closest("#tabs [data-tab]");
+  if (tab) { S.tab = tab.dataset.tab; lsSet("tab", S.tab); S.confirm = null; render(); window.scrollTo(0, 0); return; }
+  const open = e.target.closest("[data-open]");
+  if (open) { S.openSet = open.dataset.open; S.q = 0; S.pick = null; S.editing = false; S.lastScan = null; render(); window.scrollTo(0, 0); return; }
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act, set = S.sets[S.openSet], c = curClass();
+  switch (act) {
+    case "newset": S.newSet = { title: "Bell work", date: todayISO(), questions: Array.from({ length: 4 }, () => ({ text: "", correct: "" })) }; render(); window.scrollTo(0, 0); break;
+    case "nscancel": S.newSet = null; render(); break;
+    case "nsadd": S.newSet.questions.push({ text: "", correct: "" }); render(); break;
+    case "nsdel": S.newSet.questions.splice(+b.dataset.i, 1); render(); break;
+    case "nscorrect": S.newSet.questions[+b.dataset.i].correct = b.dataset.l; render(); break;
+    case "nsparse": { const parsed = parsePaste($("#nsPaste").value); if (!parsed.length) { toast("Couldn't find any questions or letters in that text."); break; } S.newSet.questions = parsed; render(); toast(`Filled in ${parsed.length} question${parsed.length > 1 ? "s" : ""}.`); break; }
+    case "nssave": {
+      const ns = S.newSet; if (!ns.questions.length) break;
+      const s = { id: uid(), title: ns.title.trim() || "Bell work", date: ns.date || todayISO(), questions: ns.questions.map(q => ({ text: q.text.trim(), correct: q.correct || "" })), answers: {}, created: Date.now() };
+      S.newSet = null; S.openSet = s.id; S.q = 0; S.lastScan = null; saveSet(s); window.scrollTo(0, 0); break; }
+    case "back": S.openSet = null; S.editing = false; S.confirm = null; render(); break;
+    case "q": S.q = +b.dataset.i; S.pick = null; render(); break;
+    case "correct": if (set) { set.questions[S.q].correct = b.dataset.l; saveSet(set); } break;
+    case "scan": $("#camIn").value = ""; $("#camIn").click(); break;
+    case "pickphoto": $("#picIn").value = ""; $("#picIn").click(); break;
+    case "turn": if (set && S.lastScan) { const prev = S.lastScan.turn; S.lastScan.turn = (prev + 1) % 4; applyScan(set, S.lastScan, prev); toast("Turned answers a quarter turn"); } break;
+    case "pick": S.pick = S.pick === b.dataset.sid ? null : b.dataset.sid; render(); break;
+    case "setans": if (set) { const qa = { ...(set.answers?.[S.q] || {}) }; if (b.dataset.l) qa[b.dataset.sid] = b.dataset.l; else delete qa[b.dataset.sid]; set.answers = { ...(set.answers || {}), [S.q]: qa }; S.pick = null; saveSet(set); } break;
+    case "editset": S.editing = !S.editing; S.confirm = null; render(); break;
+    case "esadd": if (set) { set.questions.push({ text: "", correct: "" }); S.q = set.questions.length - 1; saveSet(set); } break;
+    case "esdelq": if (set && set.questions.length > 1) { const ans = {}; set.questions.splice(S.q, 1); set.questions.forEach((_, i) => { const from = i < S.q ? i : i + 1; if (set.answers?.[from]) ans[i] = set.answers[from]; }); set.answers = ans; S.q = Math.max(0, S.q - 1); S.lastScan = null; saveSet(set); } break;
+    case "esclearq": if (set) { const a = { ...(set.answers || {}) }; delete a[S.q]; set.answers = a; S.lastScan = null; saveSet(set); toast(`Cleared Q${S.q + 1}`); } break;
+    case "delset": S.confirm = "delset"; render(); break;
+    case "delset2": if (set) { deleteSet(set); S.editing = false; S.confirm = null; toast("Set deleted"); } break;
+    case "cancelconfirm": S.confirm = null; render(); break;
+    case "addnames": {
+      const names = $("#addNames").value.split(/\r?\n/).map(s => s.replace(/^\s*\d+[.)]\s*/, "").replace(/\t/g, " ").trim()).filter(Boolean);
+      if (!names.length) { toast("Paste at least one name."); break; }
+      const st = students(c), used = new Set(st.map(s => s.card)); const added = [];
+      for (const n of names) { let k = 1; while (used.has(k)) k++; if (k > MAX_CARDS) { toast(`Only ${MAX_CARDS} cards — ${names.length - added.length} names weren't added.`); break; } used.add(k); added.push({ id: uid(), name: n, card: k }); }
+      saveClass({ ...c, students: [...st, ...added] }); if (added.length) toast(`Added ${added.length} student${added.length > 1 ? "s" : ""}`); break; }
+    case "redit": S.rosterEdit = b.dataset.sid; S.confirm = null; render(); break;
+    case "recancel": S.rosterEdit = null; S.confirm = null; render(); break;
+    case "resave": { const name = $("#reName").value.trim(), card = +$("#reCard").value; if (!name) { toast("Enter a name."); break; }
+      saveClass({ ...c, students: students(c).map(s => s.id === b.dataset.sid ? { ...s, name, card } : s) }); S.rosterEdit = null; toast("Saved"); break; }
+    case "rm": S.confirm = "rm:" + b.dataset.sid; render(); break;
+    case "rm2": saveClass({ ...c, students: students(c).filter(s => s.id !== b.dataset.sid) }); S.rosterEdit = null; S.confirm = null; toast("Removed"); break;
+    case "rename": { const n = $("#className").value.trim(); if (n) { saveClass({ ...c, name: n }); toast("Renamed"); } break; }
+    case "range": S.report.range = b.dataset.r; if (b.dataset.r === "pick" && !S.report.chosen) S.report.chosen = []; render(); break;
+    case "cardspdf": { const bin = atob(CARDS_PDF_B64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); offerFile("STCS_Answer_Cards_1-40.pdf", new Blob([u8])); break; }
+    case "csvsum": case "csvdet": exportCSV(act === "csvdet"); break;
+    case "backup": downloadBackup(); break;
+    case "restore": $("#restoreIn").value = ""; $("#restoreIn").click(); break;
+    case "restore2": applyRestore(); break;
+    case "restorecancel": S.restore = null; render(); break;
+    case "copybackup": { const ta = $("#backupText"); try { await navigator.clipboard.writeText(S.backupText); toast("Copied"); } catch { ta.focus(); ta.select(); toast("Text selected — copy it"); } break; }
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "camIn" || t.id === "picIn") { handlePhoto(t.files?.[0]); return; }
+  if (t.id === "restoreIn") { readRestore(t.files?.[0]); return; }
+  if (t.dataset.act === "choose") { const ch = new Set(S.report.chosen || []); t.checked ? ch.add(t.value) : ch.delete(t.value); S.report.chosen = [...ch]; render(); return; }
+  if (t.dataset.es) { const set = S.sets[S.openSet]; if (!set) return; if (t.dataset.es === "title") set.title = t.value.trim() || "Bell work"; if (t.dataset.es === "date") set.date = t.value || set.date; if (t.dataset.es === "qtext") set.questions[S.q].text = t.value.trim(); saveSet(set); }
+});
+document.addEventListener("input", e => {
+  const t = e.target; if (!t.dataset.ns || !S.newSet) return;
+  if (t.dataset.ns === "text") S.newSet.questions[+t.dataset.i].text = t.value;
+  else S.newSet[t.dataset.ns] = t.value;
+});
+
+function parsePaste(txt) {
+  const lines = txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const out = []; let cur = null;
+  for (const l of lines) {
+    const q = l.match(/^(\d+)[.)]\s+(.*)$/); const c = l.match(/^correct\s*[:=]?\s*([ABCD])\b/i);
+    if (q) { cur = { text: q[2].trim(), correct: "" }; out.push(cur); }
+    else if (c && cur) cur.correct = c[1].toUpperCase();
+  }
+  if (out.length) return out;
+  const letters = txt.toUpperCase().match(/\b[ABCD]\b/g);
+  return letters ? letters.map(L => ({ text: "", correct: L })) : [];
+}
+async function exportCSV(detail) {
+  const sets = reportSets(), sts = students(), c = curClass();
+  if (!sets.length || !sts.length) { toast("Nothing to export in this range."); return; }
+  let rows;
+  if (!detail) {
+    rows = [["Student", "Card", ...sets.map(s => `${s.date} ${s.title}`), "Overall %", "Points /10"]];
+    for (const st of sts) { let cc = 0, g = 0; const cells = sets.map(s => { const x = scoreSet(s, st.id); if (!x.answered) return "absent"; cc += x.correct; g += x.graded; return x.graded ? `${x.correct}/${x.graded}` : "participated"; }); const p = g ? Math.round(100 * cc / g) : ""; rows.push([st.name, st.card, ...cells, p, p === "" ? "" : (p / 10).toFixed(1)]); }
+  } else {
+    rows = [["Date", "Set", "Question", "Correct answer", "Student", "Card", "Answer", "Result"]];
+    for (const s of sets) (s.questions || []).forEach((q, i) => { for (const st of sts) { const a = s.answers?.[i]?.[st.id] || ""; rows.push([s.date, s.title, `Q${i + 1}${q.text ? ": " + q.text : ""}`, q.correct === "ANY" ? "survey" : q.correct, st.name, st.card, a, !a ? "no answer" : q.correct === "ANY" ? "participated" : q.correct ? (a === q.correct ? "correct" : "incorrect") : ""]); } });
+  }
+  const name = `${(c?.name || "class").replace(/[^A-Za-z0-9]+/g, "_")}_${detail ? "answers" : "scores"}_${todayISO()}.csv`;
+  offerFile(name, toCSV(rows));
+}
+
+boot();
+</script>
