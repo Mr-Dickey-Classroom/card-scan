@@ -3,7 +3,7 @@
 An answer-card scanner for Mr. D's classes at STCS, replacing Plickers. It runs in the phone's
 web browser, keeps every student name on the phone, and never sends anything over the internet.
 
-The full plan is in `BUILD_BRIEF.md`. `reference/` holds the tested card codes, the prototype and
+The full plan is in `BUILD_BRIEF.md`. What's done so far is in `PROGRESS.md`. `reference/` holds the tested card codes, the prototype and
 the original scanner tests. Don't change the card codes: 40 cards are already printed.
 
 ## Status
@@ -60,7 +60,8 @@ certificate warning goes away.
 | `src/vendor/` | The js-aruco2 card-reading library (MIT license), bundled so nothing loads from the internet. |
 | `src/roster.js` | One student list. Each student has one card number (1–40) in every class. |
 | `src/scoring.js` | Scores, absent rules, report date ranges, questions to reteach. |
-| `src/csv.js` | Spreadsheet (CSV) downloads. |
+| `src/csv.js` | Spreadsheet (CSV) reading and downloads. |
+| `src/upload.js` | Question and roster uploads from CSV files: the preview, problems by row, and saving. |
 | `src/paste.js` | Turns pasted questions or letters into a bell work set. |
 | `src/backup.js` | Backup files, including converting the prototype's old backups. |
 | `src/storage.js` | Saves to the phone (IndexedDB). |

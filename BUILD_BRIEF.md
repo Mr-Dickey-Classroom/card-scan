@@ -45,7 +45,19 @@ Open `reference/prototype-artifact.html` in a browser to see how the current ver
   - **Changing a card number** changes it everywhere. Block a number that's already taken, and show who has it.
   - Add a **Students screen** listing everyone, with their card number and classes. It can be sorted by name or by number, and printed as a "Who has which card" list.
   - When a card is scanned in a class, match it only against students enrolled in that class. A card from a student not in the class shows as "Card 23 (Ana R.) isn't in this class," with a button to add them.
-- **Bell work sets:** each set has a title, a date, and questions. Each question has optional text and a correct answer, which is A, B, C, D or "Survey" (participation only, not graded). Include the paste parser from the prototype: numbered questions with a `CORRECT: X` line, or just letters like `B A C A`.
+- **Bell work sets:** each set has a title, a date, and questions. Each question has optional text, optional text for choices A–D, and a correct answer, which is A, B, C, D or "Survey" (participation only, not graded). Include the paste parser from the prototype: numbered questions with a `CORRECT: X` line, or just letters like `B A C A`.
+- **Upload questions from a CSV file:** this is how Mr. D will add most questions. He makes them in Excel or Google Sheets and saves or downloads them as CSV.
+  - **Columns** (header row required, column order doesn't matter, names not case-sensitive): `class, date, set_title, question_number, question, choice_a, choice_b, choice_c, choice_d, correct`. Examples are in `reference/csv/`: `questions_TEMPLATE.csv` and this week's real 7th and 8th grade questions.
+  - **One file can hold many sets and classes.** Rows with the same class + date + set_title become one set, ordered by `question_number`.
+  - **`class`** matches a class name, ignoring case. If a class name isn't recognized, ask which class to use instead of guessing. If the file has no `class` column, use the class that's open.
+  - **`date`** accepts `2026-11-09`, `11/9/2026` and `11/9/26`.
+  - **`correct`** accepts A–D in either case, or `Survey`, `S`, `Any` or blank (all meaning survey).
+  - **Choices are optional,** so a file with only `question` and `correct` works.
+  - **Handle real-world files:** Excel's byte-order mark, quoted fields with commas and line breaks, semicolon separators from non-US Excel, and trailing empty rows.
+  - **Show a preview before saving:** "4 sets, 16 questions," with sets listed by class and date, plus a list of problems with row numbers ("Row 7: correct answer 'E' isn't A–D"). Let the teacher fix the file and re-upload, or import the rows that are fine.
+  - **If a set with the same class, date and title already exists,** ask "Replace" or "Keep both." Never silently overwrite a set that already has scanned answers.
+  - **Also export:** a "Download as CSV" button on any set or class writes the same format, so files round-trip.
+- **Upload a roster from a CSV file:** columns `name` (required), and optionally `class` and `card`. Use the same matching rules as pasted names. A student already in another class keeps their number. A `card` value that belongs to someone else is flagged in the preview, not applied.
 - **Scan screen:**
   - Pick the question.
   - **Live scan:** the camera fills the screen, with a box drawn on each card it reads and the student's first name and letter on it. A progress bar shows "14 / 18 answered." A "Missing" drawer lists who hasn't been read yet. Tap Done to save.
@@ -112,11 +124,13 @@ Open `reference/prototype-artifact.html` in a browser to see how the current ver
                "studentIds": ["k3j9x2ab"] },
                "jhsci": { "name": "JH Science", "color": "--cjh", "order": 4, "studentIds": ["k3j9x2ab"] } },
   "sets": { "math8": { "w1102": { "title": "Bell work — L7", "date": "2026-11-02",
-              "questions": [ { "text": "…", "correct": "B" }, { "text": "", "correct": "ANY" } ],
+              "questions": [ { "text": "…", "choices": ["w = b + 3", "w = 3b", "b = 3w", "w = b ÷ 3"], "correct": "B" },
+                             { "text": "", "correct": "ANY" } ],
               "answers": { "0": { "k3j9x2ab": "B" } }, "created": 1793570690280, "updated": 1793570690999 } } }
 }
 ```
 - `correct` is "A", "B", "C" or "D". "ANY" means a survey question. "" means not set yet.
+- `choices` is optional: an array of up to 4 strings for A–D, filled from CSV uploads and shown on the scan screen and projector view.
 - `answers` maps the question index (as a string) to student id → letter. Answers stay tied to the student id, so a student's history follows them if their card number changes.
 - A student's card number is unique across `students`.
 
@@ -141,6 +155,7 @@ Open `reference/prototype-artifact.html` in a browser to see how the current ver
 - Port the prototype's logic into modules: storage (IndexedDB), detection, scoring, CSV, backup.
 - Port `reference/scanner-tests/` into automated Playwright tests: the synthetic scenes, plus the `room.jpg` photo, which must read cards 1–8 as A, B, C, D, A, B, C, D in that order.
 - Add unit tests for the scoring rules in section 3, for the shared student list (one number per student across classes, no duplicate numbers), and for the v1 → v2 migration in section 6.
+- Add question CSV upload with preview (section 3). The three files in `reference/csv/` must import cleanly: the 7th grade file gives 4 sets and 20 questions, and the 8th grade file gives 4 sets and 16 questions. Add tests for a file with a bad `correct` value, a file saved by Excel (byte-order mark, quoted commas), and a re-upload of an existing set.
 - Done when the tests pass and `npm run dev` shows the app working with photo scanning.
 
 **Milestone 2 — Live camera scanning.**

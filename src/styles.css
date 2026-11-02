@@ -177,3 +177,10 @@ body.living { overflow: hidden; }
 .ldrawer p { color: #d7d9ca; margin: 10px 0 0; }
 .lnote { color: var(--yellow) !important; }
 @media (prefers-reduced-motion: reduce) { .lbar span { transition: none; } }
+
+/* Answer choices on the scan screen (from CSV uploads or typed in) */
+.choices { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.choices li { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 8px; background: var(--none); overflow-wrap: anywhere; }
+.choices li b { font: 800 18px/1 var(--display); min-width: 16px; }
+.choices li.right { background: var(--ok-bg); color: var(--ok); }
+details > .grid2 { margin-top: 8px; }

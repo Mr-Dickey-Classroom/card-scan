@@ -2,13 +2,15 @@
 // the page and turns taps into changes. Ported from reference/prototype-artifact.html.
 import "./styles.css";
 import cardsPdfUrl from "../reference/STCS_Answer_Cards_1-40.pdf?url";
+import templateCsvUrl from "../reference/csv/questions_TEMPLATE.csv?url";
 import { MAX_CARDS, detectMulti, fileToCanvas, angleToLetter } from "./detect.js";
 import { LETTERS, uid, todayISO } from "./model.js";
 import { load, save } from "./storage.js";
 import { classStudents, planAdd, applyAdd, parseNames, setCard, renameStudent, unenroll, enroll, notInClass, matchCard, shortName } from "./roster.js";
 import { setPct, qProgress, sortSets, reportSets, reportRows, reteachList } from "./scoring.js";
 import { parsePaste } from "./paste.js";
-import { scoresCSV, answersCSV } from "./csv.js";
+import { scoresCSV, answersCSV, questionsCSV } from "./csv.js";
+import { planQuestions, applyQuestions, planRoster, applyRoster } from "./upload.js";
 import { buildBackup, readBackup } from "./backup.js";
 import { openLive } from "./live.js";
 
@@ -19,6 +21,7 @@ const S = {
   openSet: null, q: 0, pick: null, editing: false, lastScan: null, newSet: null,
   report: { range: "week", chosen: [] }, rosterEdit: null, confirm: null,
   addPlan: null, existing: null, restore: null,
+  qImport: null, rImport: null, // CSV uploads waiting in a preview: { name, text, classMap, dec }
 };
 function lsGet(k) { try { return localStorage.getItem("cardscan:" + k); } catch { return null; } }
 function lsSet(k, v) { try { localStorage.setItem("cardscan:" + k, v); } catch { /* not important */ } }
@@ -158,9 +161,66 @@ function viewSets() {
   return `${banner()}
   <div class="row spread"><div><h2>${esc(c?.name || "")} bell work</h2><p class="sub">${plural(n, "student")} on the roster</p></div>
   <button class="btn primary" data-act="newset">+ New set</button></div>
+  ${S.qImport ? viewQImport() : `<div class="row"><button class="btn" data-act="qupload">Upload questions (CSV)</button>
+    ${list.length ? `<button class="btn sm" data-act="qdownclass">Download as CSV</button>` : ""}
+    <a class="btn sm ghost" href="${templateCsvUrl}" download="questions_TEMPLATE.csv">Blank template</a></div>`}
   ${n === 0 ? `<div class="note info">Add your students on the <b>Roster</b> tab first, so scanned cards match names.</div>` : ""}
   ${list.length ? `<div class="setlist">${items}</div>` : `<div class="panel empty"><b>No bell work yet</b><span>Make a set for today: choose how many questions and the correct letters. Then scan the room for each question.</span><button class="btn primary" data-act="newset">+ New set</button></div>`}`;
 }
+
+const classOptions = (sel = "") => classList().map(c => `<option value="${c.id}" ${c.id === sel ? "selected" : ""}>${esc(c.name)}</option>`).join("");
+// "Math 8" isn't a class: ask which one to use (or skip), never guess.
+const askClasses = (names, map, attr) => names.map(n => `<label class="f"><span>“${esc(n)}” isn't one of your classes. Which class is it?</span>
+  <select data-${attr}="${esc(n)}"><option value="">Choose…</option>${classOptions(map[n])}<option value="__skip">Skip these rows</option></select></label>`).join("");
+const problemList = probs => probs.length ? `<div class="note"><b>${plural(probs.length, "problem")}</b>. These rows won't be imported:<ul class="changes">${probs.map(x => `<li>${esc(x.msg)}</li>`).join("")}</ul>Fix the file and upload it again, or import the rows that are fine.</div>` : "";
+
+function qImportPlan() { const I = S.qImport; return planQuestions(I.text, S.data, S.cls, I.classMap); }
+function viewQImport() {
+  const I = S.qImport, p = qImportPlan();
+  const head = `<div class="row spread"><h3>Upload questions</h3><span class="sub">${esc(I.name)}</span></div>`;
+  if (p.error) return `<div class="panel">${head}<div class="note">${esc(p.error)}</div><div class="row"><button class="btn primary" data-act="qupload">Choose another file</button><button class="btn" data-act="qcancel">Cancel</button></div></div>`;
+  const undecided = p.sets.filter(x => x.existingId && !I.dec[x.key]).length;
+  const rows = p.sets.map(x => {
+    const d = fmtDay(x.date);
+    return `<div class="match"><span><b>${esc(x.className)}</b> · ${esc(d.long)} · ${esc(x.title)} · ${plural(x.questions.length, "question")}</span>
+      ${x.existingId ? `<span class="sub">You already have this set${x.existingAnswered ? `, with answers scanned for ${plural(x.existingAnswered, "question")}` : ""}. <b>Replace</b> updates its questions${x.existingAnswered ? " and keeps the scanned answers" : ""}. <b>Keep both</b> adds a second copy.</span>
+      <div class="seg"><button class="btn sm" data-act="qdec" data-k="${esc(x.key)}" data-c="replace" aria-pressed="${I.dec[x.key] === "replace"}">Replace</button><button class="btn sm" data-act="qdec" data-k="${esc(x.key)}" data-c="keep" aria-pressed="${I.dec[x.key] === "keep"}">Keep both</button></div>` : ""}</div>`;
+  }).join("");
+  const why = p.unknownClasses.length ? "Choose a class above first." : undecided ? "Choose Replace or Keep both for each set you already have." : "";
+  return `<div class="panel">${head}
+    ${askClasses(p.unknownClasses, Object.fromEntries(Object.entries(I.classMap).map(([k, v]) => [k, v || "__skip"])), "qmap")}
+    <p style="margin:0;font-size:18px"><b>${plural(p.sets.length, "set")}, ${plural(p.questionCount, "question")}</b></p>
+    ${rows ? `<div>${rows}</div>` : ""}
+    ${problemList(p.problems)}
+    ${why ? `<p class="sub">${why}</p>` : ""}
+    <div class="row"><button class="btn primary" data-act="qimport" ${p.sets.length && !why ? "" : "disabled"}>Import ${plural(p.sets.length, "set")}</button>
+      <button class="btn" data-act="qupload">Upload a fixed file</button><button class="btn" data-act="qcancel">Cancel</button></div></div>`;
+}
+
+function rImportPlan() { const I = S.rImport; return planRoster(I.text, S.data, S.cls, I.classMap, I.dec); }
+function viewRImport() {
+  const I = S.rImport, p = rImportPlan();
+  const head = `<div class="row spread"><b>Roster file</b><span class="sub">${esc(I.name)}</span></div>`;
+  if (p.error) return `${head}<div class="note">${esc(p.error)}</div><div class="row"><button class="btn primary" data-act="rupload">Choose another file</button><button class="btn" data-act="rcancel">Cancel</button></div>`;
+  const rows = p.rows.map(r => {
+    const where = `<span class="sub">→ ${esc(r.className)}</span>`;
+    const same = r.match.length ? `<div class="seg"><button class="btn sm" data-act="rdec" data-row="${r.rowNo}" data-c="same" aria-pressed="${r.choice === "same"}">Same student</button><button class="btn sm" data-act="rdec" data-row="${r.rowNo}" data-c="new" aria-pressed="${r.choice === "new"}">Different student</button></div>` : "";
+    const what = r.action === "already" ? `is already in this class (card #${r.student.card}).`
+      : r.action === "enroll" ? `— already card #${r.student.card}. Same student?`
+      : r.action === "link" ? `— same student as row ${r.linkTo.rowNo}, card #${r.card}.`
+      : r.action === "full" ? `can't be added: all ${MAX_CARDS} cards are in use.`
+      : r.match.length ? `— a different student with the same name, gets card #${r.card}.` : `— new student, card #${r.card}.`;
+    return `<div class="match"><span><b>${esc(r.name)}</b> ${what} ${where}</span>${same}</div>`;
+  }).join("");
+  const n = p.rows.filter(r => r.action !== "already" && r.action !== "full").length;
+  return `${head}${askClasses(p.unknownClasses, Object.fromEntries(Object.entries(I.classMap).map(([k, v]) => [k, v || "__skip"])), "rmap")}
+    <div>${rows}</div>${problemList(p.problems)}
+    ${p.unknownClasses.length ? `<p class="sub">Choose a class above first.</p>` : ""}
+    <div class="row"><button class="btn primary" data-act="rimport" ${n && !p.unknownClasses.length ? "" : "disabled"}>Add ${plural(n, "student")}</button><button class="btn" data-act="rupload">Upload a fixed file</button><button class="btn" data-act="rcancel">Cancel</button></div>`;
+}
+
+const csvName = (...parts) => parts.join("_").replace(/[^A-Za-z0-9-]+/g, "_").replace(/^_+|_+$/g, "") + ".csv";
+const choiceInputs = (choices, attrs) => `<div class="grid2">${LETTERS.map((L, j) => `<label class="f">Choice ${L}<input type="text" ${attrs(j)} value="${esc(choices?.[j] || "")}"></label>`).join("")}</div>`;
 
 function viewNewSet() {
   const ns = S.newSet;
@@ -168,6 +228,7 @@ function viewNewSet() {
     <div class="panel" style="gap:8px">
       <div class="row spread"><h3>Question ${i + 1}</h3>${ns.questions.length > 1 ? `<button class="btn sm ghost danger" data-act="nsdel" data-i="${i}">Remove</button>` : ""}</div>
       <label class="f">Question text (optional)<input type="text" data-ns="text" data-i="${i}" value="${esc(q.text)}" placeholder="e.g. Where is the image of (6, −4)?"></label>
+      <details ${q.choices?.some(Boolean) ? "open" : ""}><summary class="sub" style="cursor:pointer">Answer choices (optional)</summary>${choiceInputs(q.choices, j => `data-ns="choice" data-i="${i}" data-j="${j}"`)}</details>
       <div class="row"><span class="sub">Correct answer</span><div class="letters">${LETTERS.map(L => `<button class="letter" data-act="nscorrect" data-i="${i}" data-l="${L}" aria-pressed="${q.correct === L}">${L}</button>`).join("")}<button class="letter any" data-act="nscorrect" data-i="${i}" data-l="ANY" aria-pressed="${q.correct === "ANY"}">Survey</button></div></div>
     </div>`).join("");
   return `<div class="row spread"><h2>New bell work set</h2><button class="btn ghost" data-act="nscancel">Cancel</button></div>
@@ -221,6 +282,7 @@ function viewSet() {
     <div class="row spread"><h3>Question ${S.q + 1}</h3>
       <div class="letters">${LETTERS.map(L => `<button class="letter" data-act="correct" data-l="${L}" aria-pressed="${q?.correct === L}" aria-label="Correct answer ${L}">${L}</button>`).join("")}<button class="letter any" data-act="correct" data-l="ANY" aria-pressed="${q?.correct === "ANY"}">Survey</button></div></div>
     ${q?.text ? `<p style="margin:0;font-size:18px">${esc(q.text)}</p>` : ""}
+    ${q?.choices?.some(Boolean) ? `<ol class="choices">${LETTERS.map((L, j) => q.choices[j] ? `<li class="${q.correct === L ? "right" : ""}"><b>${L}</b> ${esc(q.choices[j])}</li>` : "").join("")}</ol>` : ""}
     ${!q?.correct ? `<div class="note">Tap the correct letter above so answers can be marked right or wrong.</div>` : ""}
     <div class="stats"><div class="stat"><div class="v">${answered}/${sts.length}</div><div class="l">Answered</div></div>
       <div class="stat"><div class="v">${correctN === null ? "—" : correctN}</div><div class="l">Correct</div></div>
@@ -240,9 +302,11 @@ function viewEditSet(set) {
     <div class="grid2"><label class="f">Title<input type="text" data-es="title" value="${esc(set.title)}"></label>
     <label class="f">Date<input type="date" data-es="date" value="${esc(set.date)}"></label></div>
     <label class="f">Question ${S.q + 1} text<input type="text" data-es="qtext" value="${esc(set.questions[S.q]?.text || "")}"></label>
+    ${choiceInputs(set.questions[S.q]?.choices, j => `data-es="choice" data-j="${j}"`)}
     <div class="row"><button class="btn sm" data-act="esadd">+ Add question</button>
       ${set.questions.length > 1 ? `<button class="btn sm danger" data-act="esdelq">Remove Q${S.q + 1}</button>` : ""}
-      <button class="btn sm" data-act="esclearq">Clear Q${S.q + 1} answers</button></div>
+      <button class="btn sm" data-act="esclearq">Clear Q${S.q + 1} answers</button>
+      <button class="btn sm" data-act="qdownset">Download as CSV</button></div>
     ${S.confirm === "delset" ? `<div class="note">Delete this set and all its answers? This can't be undone. <div class="row" style="margin-top:8px"><button class="btn sm danger" data-act="delset2">Delete set</button><button class="btn sm" data-act="cancelconfirm">Keep it</button></div></div>`
       : `<div><button class="btn sm danger" data-act="delset">Delete set…</button></div>`}
   </div>`;
@@ -280,7 +344,8 @@ function viewRoster() {
   <div><h2>${esc(c?.name || "")} roster</h2><p class="sub">${plural(sts.length, "student")} in this class · ${Object.keys(S.data.students).length} of ${MAX_CARDS} cards in use across all classes. Each student has one card number in every class.</p></div>
   <div class="panel">
     <h3>Add students</h3>
-    ${S.addPlan ? viewAddPlan() : `<label class="f">One name per line. Paste from your gradebook.<textarea id="addNames" placeholder="First Last&#10;First Last"></textarea></label>
+    ${S.rImport ? viewRImport() : S.addPlan ? viewAddPlan() : `<div class="row"><button class="btn" data-act="rupload">Upload a roster (CSV)</button><span class="sub">Columns: <b>name</b>, and if you like <b>class</b> and <b>card</b>.</span></div>
+    <label class="f">One name per line. Paste from your gradebook.<textarea id="addNames" placeholder="First Last&#10;First Last"></textarea></label>
     <div class="row"><button class="btn primary" data-act="addnames">Add to roster</button><span class="sub">New students get the lowest free card number. Students already in another class keep theirs.</span></div>`}
   </div>
   ${viewExisting()}
@@ -369,7 +434,7 @@ function viewCards() {
 // ---------- events ----------
 document.addEventListener("click", e => {
   const chip = e.target.closest("[data-cls]");
-  if (chip) { S.cls = chip.dataset.cls; lsSet("cls", S.cls); Object.assign(S, { openSet: null, newSet: null, lastScan: null, pick: null, addPlan: null, existing: null, rosterEdit: null, confirm: null }); S.report.chosen = []; render(); return; }
+  if (chip) { S.cls = chip.dataset.cls; lsSet("cls", S.cls); Object.assign(S, { openSet: null, newSet: null, lastScan: null, pick: null, addPlan: null, existing: null, rosterEdit: null, confirm: null, rImport: null }); if (S.qImport) S.qImport.dec = {}; S.report.chosen = []; render(); return; }
   const tab = e.target.closest("#tabs [data-tab]");
   if (tab) { S.tab = tab.dataset.tab; lsSet("tab", S.tab); S.confirm = null; render(); window.scrollTo(0, 0); return; }
   const open = e.target.closest("[data-open]");
@@ -386,7 +451,7 @@ document.addEventListener("click", e => {
     case "nssave": {
       const ns = S.newSet; if (!ns.questions.length) break;
       const id = uid();
-      classSets()[id] = { title: ns.title.trim() || "Bell work", date: ns.date || todayISO(), questions: ns.questions.map(q => ({ text: q.text.trim(), correct: q.correct || "" })), answers: {}, created: Date.now(), updated: Date.now() };
+      classSets()[id] = { title: ns.title.trim() || "Bell work", date: ns.date || todayISO(), questions: ns.questions.map(q => { const ch = (q.choices || []).map(x => x.trim()); return { text: q.text.trim(), ...(ch.some(Boolean) ? { choices: [0, 1, 2, 3].map(j => ch[j] || "") } : {}), correct: q.correct || "" }; }), answers: {}, created: Date.now(), updated: Date.now() };
       Object.assign(S, { newSet: null, openSet: id, q: 0, lastScan: null }); commit(); window.scrollTo(0, 0); break; }
     case "back": Object.assign(S, { openSet: null, editing: false, confirm: null }); render(); break;
     case "q": S.q = +b.dataset.i; S.pick = null; render(); break;
@@ -414,6 +479,27 @@ document.addEventListener("click", e => {
     case "plan": S.addPlan[+b.dataset.i].choice = b.dataset.c; render(); break;
     case "addconfirm": finishAdd(S.addPlan); break;
     case "addcancel": S.addPlan = null; render(); break;
+    case "qupload": $("#qcsvIn").value = ""; $("#qcsvIn").click(); break;
+    case "qcancel": S.qImport = null; render(); break;
+    case "qdec": S.qImport.dec[b.dataset.k] = b.dataset.c; render(); break;
+    case "qimport": {
+      const p = qImportPlan(), r = applyQuestions(S.data, p, S.qImport.dec);
+      const classes = [...new Set(p.sets.map(x => x.classId))];
+      S.qImport = null;
+      if (classes.length === 1 && classes[0] !== S.cls) { S.cls = classes[0]; lsSet("cls", S.cls); }
+      commit();
+      toast([r.added && `Added ${plural(r.added, "set")}`, r.replaced && `replaced ${plural(r.replaced, "set")}`].filter(Boolean).join(", ") + ` · ${plural(r.questions, "question")}`);
+      break; }
+    case "qdownclass": download(csvName(c.name, "questions", todayISO()), questionsCSV(sortSets(classSets()).map(set => ({ className: c.name, set }))), "text/csv"); break;
+    case "qdownset": if (set) download(csvName(c.name, set.date, set.title), questionsCSV([{ className: c.name, set }]), "text/csv"); break;
+    case "rupload": $("#rcsvIn").value = ""; $("#rcsvIn").click(); break;
+    case "rcancel": S.rImport = null; render(); break;
+    case "rdec": S.rImport.dec[b.dataset.row] = b.dataset.c; render(); break;
+    case "rimport": {
+      const r = applyRoster(S.data, rImportPlan());
+      S.rImport = null; commit();
+      toast([r.added && `Added ${plural(r.added, "new student")}`, r.enrolled && `${r.enrolled} already had cards`, r.already && `${r.already} already in the class`].filter(Boolean).join(" · ") || "No changes");
+      break; }
     case "existing": S.existing = { filter: "", sel: [] }; render(); break;
     case "excancel": S.existing = null; render(); break;
     case "exadd": enroll(S.data, S.cls, S.existing.sel); toast(`Added ${plural(S.existing.sel.length, "student")}`); S.existing = null; commit(); break;
@@ -458,6 +544,17 @@ function exportCSV(detail) {
 document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id === "camIn" || t.id === "picIn") { handlePhoto(t.files?.[0]); return; }
+  if (t.id === "qcsvIn" || t.id === "rcsvIn") {
+    const f = t.files?.[0]; if (!f) return;
+    const text = await f.text(), up = { name: f.name, text, classMap: {}, dec: {} };
+    if (t.id === "qcsvIn") { S.qImport = up; S.newSet = null; S.openSet = null; } else { S.rImport = up; S.addPlan = null; }
+    render(); return;
+  }
+  if (t.dataset.qmap !== undefined || t.dataset.rmap !== undefined) {
+    const I = t.dataset.qmap !== undefined ? S.qImport : S.rImport, k = t.dataset.qmap ?? t.dataset.rmap;
+    if (t.value) I.classMap[k] = t.value === "__skip" ? "" : t.value; else delete I.classMap[k];
+    render(); return;
+  }
   if (t.id === "restoreIn") {
     const f = t.files?.[0]; if (!f) return;
     try { const text = await f.text(); S.restore = { ...readBackup(text), exported: JSON.parse(text).exported }; }
@@ -471,6 +568,11 @@ document.addEventListener("change", async e => {
     if (t.dataset.es === "title") set.title = t.value.trim() || "Bell work";
     if (t.dataset.es === "date") set.date = t.value || set.date;
     if (t.dataset.es === "qtext") set.questions[S.q].text = t.value.trim();
+    if (t.dataset.es === "choice") {
+      const q = set.questions[S.q], ch = [0, 1, 2, 3].map(j => q.choices?.[j] || "");
+      ch[+t.dataset.j] = t.value.trim();
+      if (ch.some(Boolean)) q.choices = ch; else delete q.choices;
+    }
     saveSet(set);
   }
 });
@@ -479,6 +581,7 @@ document.addEventListener("input", e => {
   if (t.id === "exFilter") { S.existing.filter = t.value; render(); const f = $("#exFilter"); f.focus(); f.setSelectionRange(t.value.length, t.value.length); return; }
   if (!t.dataset.ns || !S.newSet) return;
   if (t.dataset.ns === "text") S.newSet.questions[+t.dataset.i].text = t.value;
+  else if (t.dataset.ns === "choice") { const q = S.newSet.questions[+t.dataset.i]; (q.choices ||= ["", "", "", ""])[+t.dataset.j] = t.value; }
   else S.newSet[t.dataset.ns] = t.value;
 });
 

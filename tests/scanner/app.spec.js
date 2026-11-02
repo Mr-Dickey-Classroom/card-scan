@@ -25,7 +25,7 @@ test("photo scan in the app fills in A B C D A B C D, and it's saved after reloa
 
   await page.getByRole("tab", { name: "Bell work" }).click();
   await page.getByRole("button", { name: "+ New set" }).first().click();
-  await page.locator("summary").click();
+  await page.getByText("Paste questions instead").click();
   await page.locator("#nsPaste").fill("A B C D");
   await page.getByRole("button", { name: "Fill in from pasted text" }).click();
   await page.getByRole("button", { name: "Save set" }).click();
