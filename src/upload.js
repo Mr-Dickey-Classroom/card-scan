@@ -3,7 +3,7 @@
 import { parseCSV } from "./csv.js";
 import { MAX_CARDS } from "./detect.js";
 import { uid, todayISO } from "./model.js";
-import { normName, studentsByName, studentByCard } from "./roster.js";
+import { normName, studentsByName, studentByCard, perClass, classStudents } from "./roster.js";
 
 const header = row => row.map(h => String(h).trim().toLowerCase().replace(/[\s-]+/g, "_"));
 
@@ -133,7 +133,13 @@ export function planRoster(text, data, openClassId, classMap = {}, choices = {})
   const h = header(rows[0]), col = n => h.indexOf(n);
   if (col("name") < 0) return { error: "The first row of the file needs column names, with at least “name”." };
   const problems = [], unknown = new Set(), out = [];
-  const taken = new Set(Object.values(data.students).map(s => s.card));
+  // Numbers in use: one set for the app, or one per class when card numbers are per class.
+  const takenSets = new Map();
+  const taken = classId => {
+    const k = perClass(data) ? classId : "*";
+    if (!takenSets.has(k)) takenSets.set(k, new Set((perClass(data) ? classStudents(data, classId) : Object.values(data.students)).map(s => s.card)));
+    return takenSets.get(k);
+  };
   const madeHere = new Map(); // normName → row that creates the new student
   const seenInClass = new Set();
   rows.forEach((row, r) => {
@@ -159,7 +165,7 @@ export function planRoster(text, data, openClassId, classMap = {}, choices = {})
       card = Number(get("card"));
       if (!Number.isInteger(card) || card < 1 || card > MAX_CARDS) { problems.push({ row: rowNo, msg: `Row ${rowNo}: card “${get("card")}” isn't a number from 1 to ${MAX_CARDS}.` }); card = null; }
     }
-    const match = studentsByName(data, name);
+    const match = studentsByName(data, name, classId);
     const enrolled = new Set(data.classes[classId].studentIds || []);
     const choice = match.length ? (choices[rowNo] || "same") : "new";
     const base = { rowNo, name, classId, className: data.classes[classId].name, match, choice };
@@ -169,7 +175,7 @@ export function planRoster(text, data, openClassId, classMap = {}, choices = {})
       out.push({ ...base, action: enrolled.has(s.id) ? "already" : "enroll", student: s });
       return;
     }
-    const earlier = !match.length && madeHere.get(normName(name));
+    const earlier = !match.length && !perClass(data) && madeHere.get(normName(name));
     if (earlier) { out.push({ ...base, action: "link", linkTo: earlier }); return; }
     const row2 = { ...base, action: "new", want: card, card: null };
     out.push(row2);
@@ -180,16 +186,18 @@ export function planRoster(text, data, openClassId, classMap = {}, choices = {})
   const bad = (o, msg) => problems.push({ row: o.rowNo, msg: `Row ${o.rowNo}: ${msg}` });
   for (const o of out) {
     if (o.action !== "new" || o.want === null) continue;
-    if (taken.has(o.want)) {
-      const holder = studentByCard(data, o.want) || out.find(x => x.action === "new" && x.card === o.want);
+    const t = taken(o.classId);
+    if (t.has(o.want)) {
+      const holder = studentByCard(data, o.want, o.classId) || out.find(x => x.action === "new" && x.card === o.want && (!perClass(data) || x.classId === o.classId));
       bad(o, `card #${o.want} belongs to ${holder?.name || "someone else"}, so ${o.name} gets the next free number.`);
-    } else { o.card = o.want; taken.add(o.want); }
+    } else { o.card = o.want; t.add(o.want); }
   }
   for (const o of out) {
     if (o.action !== "new" || o.card !== null) continue;
-    let k = 1; while (taken.has(k)) k++;
-    if (k > MAX_CARDS) { o.action = "full"; bad(o, `all ${MAX_CARDS} cards are in use, so ${o.name} can't be added.`); continue; }
-    o.card = k; taken.add(k);
+    const t = taken(o.classId);
+    let k = 1; while (t.has(k)) k++;
+    if (k > MAX_CARDS) { o.action = "full"; bad(o, `all ${MAX_CARDS} cards are in use${perClass(data) ? ` in ${o.className}` : ""}, so ${o.name} can't be added.`); continue; }
+    o.card = k; t.add(k);
   }
   for (const o of out) if (o.action === "link") { o.card = o.linkTo.card; if (o.linkTo.action === "full") o.action = "full"; }
   return { rows: out, problems: problems.sort((a, b) => a.row - b.row), unknownClasses: [...unknown] };

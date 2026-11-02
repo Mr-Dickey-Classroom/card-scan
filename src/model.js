@@ -1,6 +1,7 @@
 // App data, version 2 (BUILD_BRIEF section 6). Students live once; classes list the ids enrolled.
 // { students: {id: {name, card}}, classes: {id: {name, color, order, archived, studentIds}},
-//   sets: {classId: {setId: {title, date, questions, answers, created, updated}}} }
+//   sets: {classId: {setId: {title, date, questions, answers, created, updated}}},
+//   settings: {cards: "app" (one number per student, the default) | "class" (numbers per class)} }
 export const LETTERS = ["A", "B", "C", "D"];
 
 export const DEFAULT_CLASSES = [
@@ -18,7 +19,7 @@ export const uid = () => Math.random().toString(36).slice(2, 10);
 export function emptyData() {
   const classes = {};
   for (const { id, ...c } of DEFAULT_CLASSES) classes[id] = { ...c, archived: false, studentIds: [] };
-  return { students: {}, classes, sets: {} };
+  return { students: {}, classes, sets: {}, settings: {} };
 }
 
 export function todayISO(d = new Date()) {

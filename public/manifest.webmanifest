@@ -2,7 +2,7 @@
   "id": "./",
   "name": "STCS Card Scan",
   "short_name": "Card Scan",
-  "description": "Answer-card scanner for Mr. D's classes. Works offline; student names stay on this phone.",
+  "description": "Answer-card scanner for the classroom. Works offline; student names stay on this phone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

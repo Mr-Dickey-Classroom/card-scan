@@ -2,6 +2,25 @@
 
 Where the build stands, milestone by milestone (BUILD_BRIEF section 7). Newest at the top.
 
+## Ready for other teachers (2026-11-01)
+
+Other teachers open the same link and install it. Each phone keeps its own classes and students.
+- **First visit:** a **Welcome to Card Scan** panel asks for the teacher's class names (one per line)
+  and how card numbers work. **Use the example classes** keeps the four starting classes. Phones that
+  already have data (like Mr. D's) never see it.
+- **Card numbers per class** (Cards tab → **Card numbers**), for teachers with more than 40
+  students. Each class reuses cards 1–40: card 7 in one class and card 7 in another are different
+  students, and the same name in two classes is two students. Scans match only the open class.
+  The default is still one card per student across the app. Switching back is refused while two
+  students share a number, and the app lists who. The cards, the codes and the scanning are unchanged.
+  Saved as `settings.cards` (`"app"` or `"class"`) in the data and in backups.
+- **Hide this class…** on the Roster tab (inline confirmation). Its students and bell work are
+  kept. **+ Add class** lists hidden classes with **Bring back**. (This was a Milestone 4 item.)
+- The install description no longer says "Mr. D's classes."
+- Tests: `tests/unit/card-mode.test.js` (per-class numbering, scanning, roster files, switching
+  back, backups) and `tests/scanner/new-teacher.spec.js` (first visit, hide and bring back).
+  96 logic tests and 21 browser tests pass.
+
 ## Milestone 3 add-on: add as many classes as you like (2026-11-01)
 
 - **+ Add class** at the end of the class row. Type a name; the new class gets its own color, opens
@@ -93,5 +112,4 @@ Vite project, the prototype's logic split into tested modules, scanner tests (sy
 
 ## Next: Milestone 4
 
-Classroom polish: projector view, the weekly backup reminder, archiving classes (adding is done), the Far/Fast
-camera toggle, accessibility, and helpful empty states. Then a real classroom trial.
+Classroom polish: projector view, the weekly backup reminder, the Far/Fast camera toggle (adding and hiding classes are done), accessibility, and helpful empty states. Then a real classroom trial.

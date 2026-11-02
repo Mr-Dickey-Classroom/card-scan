@@ -6,7 +6,7 @@ import templateCsvUrl from "../reference/csv/questions_TEMPLATE.csv?url";
 import { MAX_CARDS, detectMulti, fileToCanvas, angleToLetter } from "./detect.js";
 import { LETTERS, uid, todayISO, addClass } from "./model.js";
 import { load, save } from "./storage.js";
-import { classStudents, planAdd, applyAdd, parseNames, setCard, renameStudent, unenroll, enroll, notInClass, matchCard, shortName } from "./roster.js";
+import { classStudents, planAdd, applyAdd, parseNames, setCard, renameStudent, unenroll, enroll, notInClass, matchCard, shortName, perClass, cardHolders, setCardMode } from "./roster.js";
 import { setPct, qProgress, sortSets, reportSets, reportRows, reteachList } from "./scoring.js";
 import { parsePaste } from "./paste.js";
 import { scoresCSV, answersCSV, questionsCSV } from "./csv.js";
@@ -20,7 +20,7 @@ const S = {
   cls: lsGet("cls") || "math8", tab: lsGet("tab") || "sets",
   openSet: null, q: 0, pick: null, editing: false, lastScan: null, newSet: null,
   report: { range: "week", chosen: [] }, rosterEdit: null, confirm: null,
-  addPlan: null, existing: null, restore: null, restored: null, update: null, newClass: null,
+  addPlan: null, existing: null, restore: null, restored: null, update: null, newClass: null, setup: false, cardModeErr: null,
   qImport: null, rImport: null, // CSV uploads waiting in a preview: { name, text, classMap, dec }
 };
 function lsGet(k) { try { return localStorage.getItem("cardscan:" + k); } catch { return null; } }
@@ -146,15 +146,24 @@ function render() {
 }
 
 function banner() {
+  if (S.setup) return `<div class="panel"><h3>Welcome to Card Scan</h3>
+    <p class="sub" style="margin:0">Set up your classes. You can rename, add or hide classes later. Moving from another phone? Restore your backup on the <b>Cards</b> tab instead.</p>
+    <label class="f">Your classes, one per line<textarea id="setupClasses" placeholder="1st period Math&#10;2nd period Math&#10;Science"></textarea></label>
+    <fieldset class="f"><legend>Card numbers</legend>
+      <label class="check"><input type="radio" name="setupCards" value="app" checked> One card per student, the same in every class (up to ${MAX_CARDS} students in all)</label>
+      <label class="check"><input type="radio" name="setupCards" value="class"> Each class uses cards 1–${MAX_CARDS} (more than ${MAX_CARDS} students in all)</label></fieldset>
+    <div class="row"><button class="btn primary" data-act="setup2">Save my classes</button><button class="btn" data-act="setupskip">Use the example classes</button></div></div>`;
   if (S.update) return `<div class="note info row" style="align-items:center;justify-content:space-between"><span><b>A new version of Card Scan is ready.</b></span><button class="btn sm primary" data-act="update">Update now</button></div>`;
   if (S.mode === "memory") return `<div class="note"><b>Not saving.</b> This browser is blocking storage (a private window, maybe). Download a backup on the Cards tab before you close the page.</div>`;
   return "";
 }
 
 function viewNewClass() {
+  const hidden = Object.entries(S.data.classes).filter(([, c]) => c.archived);
   return `<div><h2>Add a class</h2><p class="sub">Add as many classes as you like. Students keep the same card number in every class.</p></div>
   <div class="panel"><label class="f">Class name<input type="text" id="newClassName" value="${esc(S.newClass)}" placeholder="e.g. 6th Math" autocomplete="off"></label>
-    <div class="row"><button class="btn primary" data-act="addclass2">Add class</button><button class="btn" data-act="addclasscancel">Cancel</button></div></div>`;
+    <div class="row"><button class="btn primary" data-act="addclass2">Add class</button><button class="btn" data-act="addclasscancel">Cancel</button></div></div>
+  ${hidden.length ? `<div class="panel"><h3>Hidden classes</h3>${hidden.map(([id, c]) => `<div class="row" style="justify-content:space-between"><span>${esc(c.name)}</span><button class="btn sm" data-act="unhide" data-cid="${id}">Bring back</button></div>`).join("")}</div>` : ""}`;
 }
 
 function viewSets() {
@@ -340,26 +349,28 @@ function drawPreview() {
 
 function viewRoster() {
   const c = curClass(), sts = students();
-  const taken = new Map(Object.values(S.data.students).map(s => [s.card, s.name]));
+  const pc = perClass(S.data);
   const rows = sts.map(s => {
     if (S.rosterEdit === s.id) return `<div class="srow" style="grid-template-columns:1fr">
       <div class="grid2"><label class="f">Name<input type="text" id="reName" value="${esc(s.name)}"></label>
-      <label class="f">Card number (same in every class)<select id="reCard">${Array.from({ length: MAX_CARDS }, (_, i) => i + 1).map(n => `<option value="${n}" ${n === s.card ? "selected" : ""} ${taken.has(n) && n !== s.card ? "disabled" : ""}>${n}${taken.has(n) && n !== s.card ? ` — ${esc(taken.get(n))}` : ""}</option>`).join("")}</select></label></div>
+      <label class="f">${pc ? "Card number" : "Card number (same in every class)"}<select id="reCard">${((taken) => Array.from({ length: MAX_CARDS }, (_, i) => i + 1).map(n => `<option value="${n}" ${n === s.card ? "selected" : ""} ${taken.has(n) && n !== s.card ? "disabled" : ""}>${n}${taken.has(n) && n !== s.card ? ` — ${esc(taken.get(n))}` : ""}</option>`).join(""))(cardHolders(S.data, s.id))}</select></label></div>
       <div class="row"><button class="btn sm primary" data-act="resave" data-sid="${s.id}">Save</button><button class="btn sm" data-act="recancel">Cancel</button>
       ${S.confirm === "rm:" + s.id ? `<span class="sub">Take ${esc(s.name)} off the ${esc(c.name)} roster? They keep card #${s.card} and their past answers.</span><button class="btn sm danger" data-act="rm2" data-sid="${s.id}">Remove from class</button>` : `<button class="btn sm danger" data-act="rm" data-sid="${s.id}">Remove from class…</button>`}</div></div>`;
     return `<div class="srow"><span class="card">#${s.card}</span><span class="name">${esc(s.name)}</span><button class="btn sm" data-act="redit" data-sid="${s.id}">Edit</button></div>`;
   }).join("");
   return `${banner()}
-  <div><h2>${esc(c?.name || "")} roster</h2><p class="sub">${plural(sts.length, "student")} in this class · ${Object.keys(S.data.students).length} of ${MAX_CARDS} cards in use across all classes. Each student has one card number in every class.</p></div>
+  <div><h2>${esc(c?.name || "")} roster</h2><p class="sub">${plural(sts.length, "student")} in this class · ${pc ? `${sts.length} of ${MAX_CARDS} cards in use in this class. Each class has its own card numbers.` : `${Object.keys(S.data.students).length} of ${MAX_CARDS} cards in use across all classes. Each student has one card number in every class.`}</p></div>
   <div class="panel">
     <h3>Add students</h3>
     ${S.rImport ? viewRImport() : S.addPlan ? viewAddPlan() : `<div class="row"><button class="btn" data-act="rupload">Upload a roster (CSV)</button><span class="sub">Columns: <b>name</b>, and if you like <b>class</b> and <b>card</b>.</span></div>
     <label class="f">One name per line. Paste from your gradebook.<textarea id="addNames" placeholder="First Last&#10;First Last"></textarea></label>
-    <div class="row"><button class="btn primary" data-act="addnames">Add to roster</button><span class="sub">New students get the lowest free card number. Students already in another class keep theirs.</span></div>`}
+    <div class="row"><button class="btn primary" data-act="addnames">Add to roster</button><span class="sub">New students get the lowest free card number${pc ? " in this class" : ". Students already in another class keep theirs"}.</span></div>`}
   </div>
   ${viewExisting()}
   ${sts.length ? `<div class="roster">${rows}</div>` : `<div class="panel empty"><b>No students yet</b><span>Paste your class list above. Names stay on this device. Nothing is uploaded.</span></div>`}
-  <div class="panel"><h3>Class name</h3><div class="row" style="flex-wrap:nowrap"><input type="text" id="className" value="${esc(c?.name || "")}"><button class="btn" data-act="rename">Rename</button></div></div>`;
+  <div class="panel"><h3>Class name</h3><div class="row" style="flex-wrap:nowrap"><input type="text" id="className" value="${esc(c?.name || "")}"><button class="btn" data-act="rename">Rename</button></div>
+    ${classList().length < 2 ? "" : S.confirm === "hidecls" ? `<div class="row"><span class="sub">Hide ${esc(c?.name)}? Its students and bell work are kept. Bring it back any time from <b>+ Add class</b>.</span><button class="btn sm danger" data-act="hidecls2">Hide class</button><button class="btn sm" data-act="cancelconfirm">Cancel</button></div>`
+      : `<div class="row"><button class="btn sm" data-act="hidecls">Hide this class…</button></div>`}</div>`;
 }
 
 // Shown when pasted names match students already in the app.
@@ -420,7 +431,8 @@ function viewCards() {
   // After a restore, the card numbers that changed stay listed until dismissed, so the right cards get handed out.
   const restoredNote = S.restored?.length ? `<div class="note">Backup restored. <b>Card numbers that changed</b> (hand out these cards):<ul class="changes">${S.restored.map(c => `<li>${esc(c)}</li>`).join("")}</ul>
       <div class="row" style="margin-top:8px"><button class="btn sm" data-act="restoredok">Done, cards handed out</button></div></div>` : "";
-  return `<div><h2>Answer cards</h2><p class="sub">One set of 40 cards works for every class. Each student has one card number, the same in every class.</p></div>
+  const pc = perClass(S.data);
+  return `<div><h2>Answer cards</h2><p class="sub">One set of ${MAX_CARDS} cards works for every class. ${pc ? "Each class has its own card numbers." : "Each student has one card number, the same in every class."}</p></div>
   <div class="panel">
     <a class="scanbtn" href="${cardsPdfUrl}" download="STCS_Answer_Cards_1-40.pdf">Download cards 1–40 (PDF)</a>
     <ol class="steps">
@@ -440,6 +452,11 @@ function viewCards() {
     <p class="sub" style="margin:0">Your data is saved on this phone only. Download a backup each week, and restore it if you switch phones or clear your browser. Old backups from the first version of the app work too.</p>
     <div class="row"><button class="btn primary" data-act="backup">Download backup</button><button class="btn" data-act="restore">Restore from backup…</button></div>
     ${restoreNote}${restoredNote}
+  </div>
+  <div class="panel"><h3>Card numbers</h3>
+    <label class="check"><input type="radio" name="cardmode" value="app" ${pc ? "" : "checked"}> <span><b>One card per student, in every class.</b> A student in two classes keeps one number. Up to ${MAX_CARDS} students in all.</span></label>
+    <label class="check"><input type="radio" name="cardmode" value="class" ${pc ? "checked" : ""}> <span><b>Each class uses cards 1–${MAX_CARDS}.</b> For more than ${MAX_CARDS} students. Card 7 in one class and card 7 in another are different students.</span></label>
+    ${S.cardModeErr ? `<div class="note">To use one card per student, these students need different numbers first (change them on the Roster tab):<ul class="changes">${S.cardModeErr.map(d => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}
   </div>
   <div class="panel"><h3>Home screen</h3>
     ${installed() ? `<p class="sub" style="margin:0">Card Scan is installed. It opens from your home screen and works with no internet.</p>`
@@ -496,6 +513,11 @@ document.addEventListener("click", e => {
       finishAdd(plan); break; }
     case "plan": S.addPlan[+b.dataset.i].choice = b.dataset.c; render(); break;
     case "addconfirm": finishAdd(S.addPlan); break;
+    case "hidecls": S.confirm = "hidecls"; render(); break;
+    case "hidecls2": { const name = c.name; c.archived = true; S.confirm = null; S.cls = classList()[0].id; lsSet("cls", S.cls); commit(); toast(`${name} is hidden`); break; }
+    case "unhide": { const id = b.dataset.cid; S.data.classes[id].archived = false; S.data.classes[id].order = Math.max(0, ...Object.values(S.data.classes).map(x => x.order || 0)) + 1; Object.assign(S, { newClass: null, cls: id }); lsSet("cls", id); commit(); toast(`${S.data.classes[id].name} is back`); break; }
+    case "setup2": finishSetup(); break;
+    case "setupskip": S.setup = false; commit(); break;
     case "addclass": S.newClass = ""; render(); $("#newClassName")?.focus(); break;
     case "addclass2": newClass(); break;
     case "addclasscancel": S.newClass = null; render(); break;
@@ -539,7 +561,7 @@ document.addEventListener("click", e => {
     case "csvsum": case "csvdet": exportCSV(act === "csvdet"); break;
     case "backup": download(`STCS_Card_Scan_backup_${todayISO()}.json`, JSON.stringify(buildBackup(S.data)), "application/json"); break;
     case "restore": $("#restoreIn").value = ""; $("#restoreIn").click(); break;
-    case "restore2": if (S.restore?.data) { S.data = S.restore.data; S.restored = S.restore.changes; S.restore = null; if (!S.data.classes[S.cls]) S.cls = "math8"; commit(); toast("Backup restored"); } break;
+    case "restore2": if (S.restore?.data) { S.data = S.restore.data; S.restored = S.restore.changes; S.setup = false; S.restore = null; if (!S.data.classes[S.cls]) S.cls = "math8"; commit(); toast("Backup restored"); } break;
     case "install": installPrompt?.prompt(); installPrompt?.userChoice.finally(() => { installPrompt = null; render(); }); break;
     case "update": S.update?.waiting?.postMessage("update"); break;
     case "restoredok": S.restored = null; render(); break;
@@ -580,6 +602,12 @@ document.addEventListener("change", async e => {
     if (t.value) I.classMap[k] = t.value === "__skip" ? "" : t.value; else delete I.classMap[k];
     render(); return;
   }
+  if (t.name === "cardmode") {
+    const r = setCardMode(S.data, t.value);
+    S.cardModeErr = r.ok ? null : r.dups;
+    if (r.ok) { commit(); toast(t.value === "class" ? "Each class now uses cards 1–" + MAX_CARDS : "One card per student, in every class"); } else render();
+    return;
+  }
   if (t.id === "restoreIn") {
     const f = t.files?.[0]; if (!f) return;
     try { const text = await f.text(); S.restore = { ...readBackup(text), exported: JSON.parse(text).exported }; }
@@ -609,6 +637,20 @@ document.addEventListener("input", e => {
   else if (t.dataset.ns === "choice") { const q = S.newSet.questions[+t.dataset.i]; (q.choices ||= ["", "", "", ""])[+t.dataset.j] = t.value; }
   else S.newSet[t.dataset.ns] = t.value;
 });
+
+// First visit: replace the example classes with the teacher's own, and pick how card numbers work.
+function finishSetup() {
+  const names = parseNames($("#setupClasses").value);
+  if (!names.length) { toast("Type at least one class name, or use the example classes."); return; }
+  const mode = document.querySelector('input[name="setupCards"]:checked')?.value || "app";
+  for (const [id, c] of Object.entries(S.data.classes))
+    if (!c.studentIds.length && !Object.keys(S.data.sets[id] || {}).length) delete S.data.classes[id];
+  const ids = names.map(n => { try { return addClass(S.data, n); } catch { return null; } }).filter(Boolean);
+  setCardMode(S.data, mode);
+  Object.assign(S, { setup: false, cls: ids[0] || classList()[0].id, tab: "roster" });
+  lsSet("cls", S.cls); lsSet("tab", "roster");
+  commit(); toast(`${ids.length === 1 ? "1 class" : ids.length + " classes"} ready. Add your students.`);
+}
 
 function newClass() {
   const name = $("#newClassName").value;
@@ -642,8 +684,8 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 // ---------- start ----------
 (async () => {
-  const { data, mode } = await load();
-  S.data = data; S.mode = mode;
+  const { data, mode, fresh } = await load();
+  S.data = data; S.mode = mode; S.setup = fresh && mode === "device";
   if (!S.data.classes[S.cls]) S.cls = "math8";
   setSync(); render();
 })();

@@ -27,6 +27,7 @@ function normalizeV2(b) {
   for (const [id, c] of Object.entries(b.classes || {}))
     data.classes[id] = { ...data.classes[id], ...clone(c), archived: !!c.archived, studentIds: [...(c.studentIds || [])] };
   data.sets = clone(b.sets || {});
+  data.settings = clone(b.settings || {});
   return data;
 }
 

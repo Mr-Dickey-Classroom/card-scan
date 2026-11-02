@@ -12,6 +12,14 @@ the original scanner tests. Don't change the card codes: 40 cards are already pr
 **https://mr-dickey-classroom.github.io/card-scan/**. It installs to the phone's home screen and
 works offline. Next is Milestone 4 (classroom polish).
 
+## Sharing with other teachers
+
+Send them the link above. They open it in Chrome and install it to the home screen. Each phone keeps
+its own classes and students, and nothing is shared between phones. On the first visit the app asks
+for their class names. Teachers with more than 40 students choose **Each class uses cards 1–40**.
+Everyone prints the same card PDF from the Cards tab. Every update you publish reaches all of them,
+so try changes on your own phone first.
+
 ## Publishing updates
 
 The code lives on GitHub at github.com/Mr-Dickey-Classroom/card-scan. Every time new work is pushed
