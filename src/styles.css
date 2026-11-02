@@ -3,7 +3,7 @@
   --paper: #f6f5ef; --card: #ffffff; --ink: #16180f; --muted: #5d6152; --line: #dcdcd0;
   --green: #1d5b34; --green-2: #2f7a4a; --yellow: #f3c623; --yellow-ink: #3a2f00;
   --ok: #1f7a43; --ok-bg: #dff1e5; --bad: #b2361d; --bad-bg: #fbe3dc; --warn-bg: #fff4cc; --none: #e9e8df;
-  --c7: #1f4e79; --c8: #2f7a4a; --cearth: #8a5a2b; --cjh: #127a7a;
+  --c7: #1f4e79; --c8: #2f7a4a; --cearth: #8a5a2b; --cjh: #127a7a; --c5: #7a3e8f; --c6: #b2361d; --c9: #c08a00; --c10: #6b7385;
   --display: "Roboto Condensed", "Arial Narrow", "Avenir Next Condensed", "Helvetica Neue", Arial, sans-serif; /* device fonts only: nothing loads from the internet */
   --body: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --r: 10px;
@@ -12,12 +12,12 @@
   --paper: #11130e; --card: #1b1e16; --ink: #eef0e4; --muted: #a3a893; --line: #30342a;
   --green: #2f7a4a; --green-2: #4f9e69; --yellow: #f3c623; --yellow-ink: #2a2200;
   --ok: #6fd193; --ok-bg: #193624; --bad: #ff8b6e; --bad-bg: #3d1d15; --warn-bg: #3a3212; --none: #262a20;
-  --c7: #6ea6d9; --c8: #6fc08a; --cearth: #d09a63; --cjh: #5cc4c4; color-scheme: dark; } }
+  --c7: #6ea6d9; --c8: #6fc08a; --cearth: #d09a63; --cjh: #5cc4c4; --c5: #c39be0; --c6: #ff8b6e; --c9: #f3c623; --c10: #aab1c0; color-scheme: dark; } }
 :root[data-theme="dark"] {
   --paper: #11130e; --card: #1b1e16; --ink: #eef0e4; --muted: #a3a893; --line: #30342a;
   --green: #2f7a4a; --green-2: #4f9e69; --yellow: #f3c623; --yellow-ink: #2a2200;
   --ok: #6fd193; --ok-bg: #193624; --bad: #ff8b6e; --bad-bg: #3d1d15; --warn-bg: #3a3212; --none: #262a20;
-  --c7: #6ea6d9; --c8: #6fc08a; --cearth: #d09a63; --cjh: #5cc4c4; color-scheme: dark; }
+  --c7: #6ea6d9; --c8: #6fc08a; --cearth: #d09a63; --cjh: #5cc4c4; --c5: #c39be0; --c6: #ff8b6e; --c9: #f3c623; --c10: #aab1c0; color-scheme: dark; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -38,6 +38,7 @@ header.top .wrap { padding-block: 10px 0; display: grid; gap: 8px; }
 .chips::-webkit-scrollbar { display: none; }
 .chip { flex: none; border: 1px solid #3a3e30; background: #22251b; color: #e6e8da; border-radius: 999px; padding: 6px 14px; font: 700 15px/1.2 var(--display); letter-spacing: .04em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
 .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.chip.add { background: transparent; border-style: dashed; }
 .chip[aria-pressed="true"] { background: #f3c623; color: #2a2200; border-color: #f3c623; }
 nav.tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #2c3024; }
 nav.tabs button { background: none; border: 0; color: #c9cbb8; padding: 10px 2px 9px; font: 700 15px/1 var(--display); letter-spacing: .03em; white-space: nowrap; text-transform: uppercase; border-bottom: 3px solid transparent; }

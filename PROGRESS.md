@@ -2,6 +2,16 @@
 
 Where the build stands, milestone by milestone (BUILD_BRIEF section 7). Newest at the top.
 
+## Milestone 3 add-on: add as many classes as you like (2026-11-01)
+
+- **+ Add class** at the end of the class row. Type a name; the new class gets its own color, opens
+  on its Roster tab, and goes at the end of the row. A name you already use is refused.
+- Uploading a questions or roster file with a class the app doesn't know now also offers
+  **Make a new class called "…"**, alongside picking a class or skipping those rows.
+- No limit on classes. The only limit is 40 cards: 40 students across all classes, since each
+  student keeps one card number everywhere.
+- Tests: `tests/unit/classes.test.js` and `tests/scanner/classes.spec.js`.
+
 ## Milestone 3: installable and online (done, 2026-11-01)
 
 **The app's address:** https://mr-dickey-classroom.github.io/card-scan/
@@ -83,5 +93,5 @@ Vite project, the prototype's logic split into tested modules, scanner tests (sy
 
 ## Next: Milestone 4
 
-Classroom polish: projector view, the weekly backup reminder, archiving classes, the Far/Fast
+Classroom polish: projector view, the weekly backup reminder, archiving classes (adding is done), the Far/Fast
 camera toggle, accessibility, and helpful empty states. Then a real classroom trial.

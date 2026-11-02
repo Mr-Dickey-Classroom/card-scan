@@ -4,7 +4,7 @@ import "./styles.css";
 import cardsPdfUrl from "../reference/STCS_Answer_Cards_1-40.pdf?url";
 import templateCsvUrl from "../reference/csv/questions_TEMPLATE.csv?url";
 import { MAX_CARDS, detectMulti, fileToCanvas, angleToLetter } from "./detect.js";
-import { LETTERS, uid, todayISO } from "./model.js";
+import { LETTERS, uid, todayISO, addClass } from "./model.js";
 import { load, save } from "./storage.js";
 import { classStudents, planAdd, applyAdd, parseNames, setCard, renameStudent, unenroll, enroll, notInClass, matchCard, shortName } from "./roster.js";
 import { setPct, qProgress, sortSets, reportSets, reportRows, reteachList } from "./scoring.js";
@@ -20,7 +20,7 @@ const S = {
   cls: lsGet("cls") || "math8", tab: lsGet("tab") || "sets",
   openSet: null, q: 0, pick: null, editing: false, lastScan: null, newSet: null,
   report: { range: "week", chosen: [] }, rosterEdit: null, confirm: null,
-  addPlan: null, existing: null, restore: null, restored: null, update: null,
+  addPlan: null, existing: null, restore: null, restored: null, update: null, newClass: null,
   qImport: null, rImport: null, // CSV uploads waiting in a preview: { name, text, classMap, dec }
 };
 function lsGet(k) { try { return localStorage.getItem("cardscan:" + k); } catch { return null; } }
@@ -132,10 +132,12 @@ function applyLive(set, scan) {
 
 // ---------- rendering ----------
 function render() {
-  $("#chips").innerHTML = classList().map(c => `<button class="chip" data-cls="${c.id}" aria-pressed="${c.id === S.cls}"><i style="background:var(${c.color || "--c8"})"></i>${esc(c.name)}</button>`).join("");
-  for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === S.tab));
+  $("#chips").innerHTML = classList().map(c => `<button class="chip" data-cls="${c.id}" aria-pressed="${c.id === S.cls && S.newClass === null}"><i style="background:var(${c.color || "--c8"})"></i>${esc(c.name)}</button>`).join("")
+    + `<button class="chip add" data-act="addclass" aria-pressed="${S.newClass !== null}">+ Add class</button>`;
+  for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === S.tab && S.newClass === null));
   const v = $("#view"), keepScroll = window.scrollY;
-  if (S.tab === "sets") v.innerHTML = curSet() ? viewSet() : (S.newSet ? viewNewSet() : viewSets());
+  if (S.newClass !== null) v.innerHTML = viewNewClass();
+  else if (S.tab === "sets") v.innerHTML = curSet() ? viewSet() : (S.newSet ? viewNewSet() : viewSets());
   else if (S.tab === "roster") v.innerHTML = viewRoster();
   else if (S.tab === "reports") v.innerHTML = viewReports();
   else v.innerHTML = viewCards();
@@ -147,6 +149,12 @@ function banner() {
   if (S.update) return `<div class="note info row" style="align-items:center;justify-content:space-between"><span><b>A new version of Card Scan is ready.</b></span><button class="btn sm primary" data-act="update">Update now</button></div>`;
   if (S.mode === "memory") return `<div class="note"><b>Not saving.</b> This browser is blocking storage (a private window, maybe). Download a backup on the Cards tab before you close the page.</div>`;
   return "";
+}
+
+function viewNewClass() {
+  return `<div><h2>Add a class</h2><p class="sub">Add as many classes as you like. Students keep the same card number in every class.</p></div>
+  <div class="panel"><label class="f">Class name<input type="text" id="newClassName" value="${esc(S.newClass)}" placeholder="e.g. 6th Math" autocomplete="off"></label>
+    <div class="row"><button class="btn primary" data-act="addclass2">Add class</button><button class="btn" data-act="addclasscancel">Cancel</button></div></div>`;
 }
 
 function viewSets() {
@@ -172,7 +180,7 @@ function viewSets() {
 const classOptions = (sel = "") => classList().map(c => `<option value="${c.id}" ${c.id === sel ? "selected" : ""}>${esc(c.name)}</option>`).join("");
 // "Math 8" isn't a class: ask which one to use (or skip), never guess.
 const askClasses = (names, map, attr) => names.map(n => `<label class="f"><span>“${esc(n)}” isn't one of your classes. Which class is it?</span>
-  <select data-${attr}="${esc(n)}"><option value="">Choose…</option>${classOptions(map[n])}<option value="__skip">Skip these rows</option></select></label>`).join("");
+  <select data-${attr}="${esc(n)}"><option value="">Choose…</option>${classOptions(map[n])}<option value="__new">Make a new class called “${esc(n)}”</option><option value="__skip">Skip these rows</option></select></label>`).join("");
 const problemList = probs => probs.length ? `<div class="note"><b>${plural(probs.length, "problem")}</b>. These rows won't be imported:<ul class="changes">${probs.map(x => `<li>${esc(x.msg)}</li>`).join("")}</ul>Fix the file and upload it again, or import the rows that are fine.</div>` : "";
 
 function qImportPlan() { const I = S.qImport; return planQuestions(I.text, S.data, S.cls, I.classMap); }
@@ -444,9 +452,9 @@ function viewCards() {
 // ---------- events ----------
 document.addEventListener("click", e => {
   const chip = e.target.closest("[data-cls]");
-  if (chip) { S.cls = chip.dataset.cls; lsSet("cls", S.cls); Object.assign(S, { openSet: null, newSet: null, lastScan: null, pick: null, addPlan: null, existing: null, rosterEdit: null, confirm: null, rImport: null }); if (S.qImport) S.qImport.dec = {}; S.report.chosen = []; render(); return; }
+  if (chip) { S.cls = chip.dataset.cls; S.newClass = null; lsSet("cls", S.cls); Object.assign(S, { openSet: null, newSet: null, lastScan: null, pick: null, addPlan: null, existing: null, rosterEdit: null, confirm: null, rImport: null }); if (S.qImport) S.qImport.dec = {}; S.report.chosen = []; render(); return; }
   const tab = e.target.closest("#tabs [data-tab]");
-  if (tab) { S.tab = tab.dataset.tab; lsSet("tab", S.tab); S.confirm = null; render(); window.scrollTo(0, 0); return; }
+  if (tab) { S.tab = tab.dataset.tab; S.newClass = null; lsSet("tab", S.tab); S.confirm = null; render(); window.scrollTo(0, 0); return; }
   const open = e.target.closest("[data-open]");
   if (open) { Object.assign(S, { openSet: open.dataset.open, q: 0, pick: null, editing: false, lastScan: null }); render(); window.scrollTo(0, 0); return; }
   const b = e.target.closest("[data-act]"); if (!b || b.type === "checkbox") return;
@@ -488,6 +496,9 @@ document.addEventListener("click", e => {
       finishAdd(plan); break; }
     case "plan": S.addPlan[+b.dataset.i].choice = b.dataset.c; render(); break;
     case "addconfirm": finishAdd(S.addPlan); break;
+    case "addclass": S.newClass = ""; render(); $("#newClassName")?.focus(); break;
+    case "addclass2": newClass(); break;
+    case "addclasscancel": S.newClass = null; render(); break;
     case "addcancel": S.addPlan = null; render(); break;
     case "qupload": $("#qcsvIn").value = ""; $("#qcsvIn").click(); break;
     case "qcancel": S.qImport = null; render(); break;
@@ -565,6 +576,7 @@ document.addEventListener("change", async e => {
   }
   if (t.dataset.qmap !== undefined || t.dataset.rmap !== undefined) {
     const I = t.dataset.qmap !== undefined ? S.qImport : S.rImport, k = t.dataset.qmap ?? t.dataset.rmap;
+    if (t.value === "__new") { I.classMap[k] = addClass(S.data, k); commit(); toast(`Added the class ${k}`); return; }
     if (t.value) I.classMap[k] = t.value === "__skip" ? "" : t.value; else delete I.classMap[k];
     render(); return;
   }
@@ -597,6 +609,18 @@ document.addEventListener("input", e => {
   else if (t.dataset.ns === "choice") { const q = S.newSet.questions[+t.dataset.i]; (q.choices ||= ["", "", "", ""])[+t.dataset.j] = t.value; }
   else S.newSet[t.dataset.ns] = t.value;
 });
+
+function newClass() {
+  const name = $("#newClassName").value;
+  try {
+    const id = addClass(S.data, name);
+    Object.assign(S, { newClass: null, cls: id, tab: "roster", openSet: null, newSet: null, lastScan: null, pick: null, addPlan: null, existing: null, rosterEdit: null, confirm: null, rImport: null });
+    lsSet("cls", id); lsSet("tab", "roster");
+    commit(); toast(`Added ${S.data.classes[id].name}. Now add its students.`);
+    $(".chip[aria-pressed='true']")?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  } catch (err) { S.newClass = name; render(); toast(err.message); }
+}
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "newClassName") newClass(); });
 
 // ---------- home screen and offline ----------
 // The service worker (src/sw.js) keeps the app's files on the phone so it opens with no internet.
