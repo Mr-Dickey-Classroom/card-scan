@@ -16,19 +16,20 @@
     <div class="chips" id="chips" role="group" aria-label="Class"></div>
   </div>
   <nav class="tabs wrap" id="tabs" role="tablist" aria-label="Sections">
-    <button role="tab" data-tab="sets" aria-selected="true">Bell work</button>
-    <button role="tab" data-tab="roster" aria-selected="false">Roster</button>
-    <button role="tab" data-tab="reports" aria-selected="false">Reports</button>
-    <button role="tab" data-tab="cards" aria-selected="false">Cards</button>
+    <button role="tab" data-tab="sets" aria-selected="true" aria-controls="view">Bell work</button>
+    <button role="tab" data-tab="roster" aria-selected="false" aria-controls="view">Roster</button>
+    <button role="tab" data-tab="reports" aria-selected="false" aria-controls="view">Reports</button>
+    <button role="tab" data-tab="cards" aria-selected="false" aria-controls="view">Cards</button>
   </nav>
 </header>
 <main><div class="wrap" id="view"></div></main>
+<div class="proj" id="proj" role="dialog" aria-modal="true" aria-label="Projector view" hidden></div>
 <input type="file" id="camIn" accept="image/*" capture="environment" class="sr" aria-label="Take a photo">
 <input type="file" id="picIn" accept="image/*" class="sr" aria-label="Choose a photo">
 <input type="file" id="qcsvIn" accept=".csv,text/csv,text/plain" class="sr" aria-label="Choose a questions CSV file">
 <input type="file" id="rcsvIn" accept=".csv,text/csv,text/plain" class="sr" aria-label="Choose a roster CSV file">
 <input type="file" id="restoreIn" accept=".json,application/json" class="sr" aria-label="Choose a backup file">
-<div class="busy" id="busy" hidden><span id="busyText">Reading cards…</span></div>
+<div class="busy" id="busy" role="status" hidden><span id="busyText">Reading cards…</span></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <script type="module" src="/src/main.js"></script>
 </body>

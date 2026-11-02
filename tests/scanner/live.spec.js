@@ -2,40 +2,12 @@
 // synthetic desk with 4 cards (about 10 ft away at 1080p), drawn fresh every frame with a little noise.
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { fakeCamera } from "./fake-camera.js";
 
 const CODES = JSON.parse(readFileSync(new URL("../../reference/card-codes.json", import.meta.url)));
 const NAMES = ["Ava Martinez", "Ben Okafor", "Carla Ruiz", "Dev Patel", "Eli Chen"];
 
 test.use({ viewport: { width: 360, height: 760 } });
-
-// Runs in the page before the app loads. cards: { cardNumber: { letter, tilt } }
-function fakeCamera({ codes, cards }) {
-  const W = 1920, H = 1080, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
-  const ctx = cv.getContext("2d");
-  window.__fake = { cards, frames: 0 };
-  const quarter = { A: 0, D: 1, C: 2, B: 3 }; // canvas +90° puts the A edge on the right, so D is on top
-  function marker(id, s) {
-    const bits = codes[id].toString(2).padStart(16, "0"), u = s / 6;
-    ctx.fillStyle = "#000"; ctx.fillRect(-s / 2, -s / 2, s, s); ctx.fillStyle = "#fff";
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (bits[i * 4 + j] === "1") ctx.fillRect(-s / 2 + (j + 1) * u, -s / 2 + (i + 1) * u, u + 0.5, u + 0.5);
-  }
-  function draw() {
-    window.__fake.frames++;
-    const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#7d8270"); g.addColorStop(1, "#3d4038");
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#6b4f33"; ctx.fillRect(0, 620, W, 460); // the desk
-    Object.entries(window.__fake.cards).forEach(([n, c], i) => {
-      const s = 72, x = 330 + i * 300 + Math.sin(window.__fake.frames / 3) * 2, y = 540 + (i % 2) * 90;
-      ctx.save(); ctx.translate(x, y); ctx.rotate(((quarter[c.letter] * 90) + (c.tilt || 0)) * Math.PI / 180);
-      ctx.fillStyle = "#f4f2ec"; ctx.fillRect(-s * 0.8, -s * 0.8, s * 1.6, s * 1.6);
-      marker(+n - 1, s); ctx.restore();
-    });
-    for (let k = 0; k < 400; k++) { ctx.fillStyle = `rgba(${Math.random() > 0.5 ? 255 : 0},0,0,0.06)`; ctx.fillRect(Math.random() * W, Math.random() * H, 3, 3); }
-  }
-  draw(); setInterval(draw, 66);
-  const stream = cv.captureStream(15);
-  navigator.mediaDevices.getUserMedia = async () => stream;
-}
 
 async function setUp(page) {
   await page.goto("/");

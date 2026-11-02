@@ -4,15 +4,21 @@ import { createDebouncer } from "./debounce.js";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const firstName = n => String(n).trim().split(/\s+/)[0];
-const MAX_SIDE = 1920; // frames sent to the worker are capped at 1080p ("Fast")
+// "Fast" asks the camera for 1080p, "Far" for 4K (more pixels per card, fewer frames a second).
+// Frames sent to the worker are capped at the same size.
+const SIZES = { fast: [1920, 1080], far: [3840, 2160] };
 // Two workers read two frames at once on multi-core phones, nearly doubling detections per second.
 const WORKERS = Math.max(1, Math.min(2, (navigator.hardwareConcurrency || 2) - 1));
 
-// opts: { title, correct, students: [{ id, name, card }], existing: { studentId: letter },
-//   lookup(card) → { student, enrolled }, settings: { hideColors, debug }, saveSettings(s),
+// opts: { title, correct, question, students: [{ id, name, card }], existing: { studentId: letter },
+//   lookup(card) → { student, enrolled }, settings: { hideColors, debug, projector, res }, saveSettings(s),
+//   projector (start in projector mode), inert: [selectors to make inert while open],
 //   onDone({ reads: [{ card, letter }], tilted: [card] }), onCancel(), onPhoto() }
+// Projector mode is for a mirrored screen: the question and the count, no names or letters.
 export function openLive(opts) {
   const { students, lookup, settings } = opts;
+  if (!SIZES[settings.res]) settings.res = "fast";
+  let proj = !!(opts.projector || settings.projector), canFar = null, seen = false;
   const answers = new Map(Object.entries(opts.existing || {})); // studentId → letter, shown in progress
   const fresh = new Set();     // studentIds read during this scan (newest last)
   const everTilted = new Set();
@@ -22,18 +28,24 @@ export function openLive(opts) {
   let grab = null, gctx = null, last = null, rates = [], lastMs = 0, drawerOpen = false;
 
   const el = document.createElement("div");
-  el.className = "live"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Live scan");
+  el.className = "live"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "Live scan");
   el.innerHTML = `
     <video playsinline muted autoplay></video>
     <canvas class="ov" aria-hidden="true"></canvas>
     <div class="ltop">
       <button class="lbtn" data-l="cancel" aria-label="Close without saving">✕</button>
-      <div class="lprog"><div class="lq"></div><div class="lbar"><span></span></div><div class="lcount" aria-live="polite"></div></div>
+      <div class="lprog"><div class="lq"></div><div class="lbigq" hidden></div><div class="lbar"><span></span></div><div class="lcount" aria-live="polite"></div></div>
       <button class="lbtn" data-l="settings" aria-label="Scan settings" aria-expanded="false">⚙</button>
     </div>
     <div class="lpanel lsettings" hidden>
       <label class="check"><input type="checkbox" data-s="hideColors"> Hide right/wrong colors</label>
+      <label class="check"><input type="checkbox" data-s="projector"> Projector mode: hide names and answers</label>
       <label class="check"><input type="checkbox" data-s="debug"> Show detection speed</label>
+      <fieldset class="lres"><legend>Camera</legend>
+        <label class="check"><input type="radio" name="lres" value="fast"> <span><b>Fast</b> (1080p): smoothest, fine up to about 20 ft</span></label>
+        <label class="check"><input type="radio" name="lres" value="far"> <span><b>Far</b> (4K): reads cards farther away, a little slower</span></label>
+        <p class="lnote lfarnote" hidden>This camera doesn't offer 4K, so it stays on Fast.</p>
+      </fieldset>
     </div>
     <div class="lpanel lconfirm" hidden></div>
     <div class="lmsg" hidden></div>
@@ -48,19 +60,34 @@ export function openLive(opts) {
   document.body.classList.add("living");
   const $ = s => el.querySelector(s);
   const video = $("video"), ov = $(".ov");
-  for (const cb of el.querySelectorAll("[data-s]")) cb.checked = !!settings[cb.dataset.s];
+  for (const cb of el.querySelectorAll("[data-s]")) cb.checked = cb.dataset.s === "projector" ? proj : !!settings[cb.dataset.s];
+  // Everything behind the scan is inert, so keyboard and screen reader focus stays in it.
+  const before = document.activeElement;
+  const behind = ["header.top", "main", ...(opts.inert || [])].map(s => document.querySelector(s)).filter(x => x && !x.inert);
+  behind.forEach(x => x.inert = true);
+  $('[data-l="done"]').focus({ preventScroll: true });
+
+  function paintRes() {
+    const far = settings.res === "far" && canFar !== false;
+    for (const r of el.querySelectorAll('[name="lres"]')) r.checked = r.value === (far ? "far" : "fast");
+    el.querySelector('[name="lres"][value="far"]').disabled = canFar === false;
+    $(".lfarnote").hidden = canFar !== false;
+  }
+  paintRes();
 
   // ---------- drawing the bars, chips and drawer ----------
-  const colorOf = L => !L || settings.hideColors ? "" : opts.correct === "ANY" || !opts.correct ? "any" : L === opts.correct ? "ok" : "bad";
+  const colorOf = L => !L || settings.hideColors || proj ? "" : opts.correct === "ANY" || !opts.correct ? "any" : L === opts.correct ? "ok" : "bad";
   function paint() {
     const n = students.length, done = students.filter(s => answers.has(s.id)).length;
-    $(".lq").textContent = opts.title + (opts.correct && opts.correct !== "ANY" && !settings.hideColors ? ` · Correct: ${opts.correct}` : "");
+    el.classList.toggle("proj", proj);
+    $(".lq").textContent = opts.title + (opts.correct && opts.correct !== "ANY" && !settings.hideColors && !proj ? ` · Correct: ${opts.correct}` : "");
+    $(".lbigq").textContent = opts.question || ""; $(".lbigq").hidden = !proj || !opts.question;
     $(".lbar span").style.width = n ? `${Math.round(100 * done / n)}%` : "0";
     $(".lcount").textContent = `${done} / ${n} answered`;
     const missing = students.filter(s => !answers.has(s.id));
     const m = $('[data-l="missing"]'); m.textContent = `Missing (${missing.length})`; m.setAttribute("aria-expanded", String(drawerOpen));
     const byId = new Map(students.map(s => [s.id, s]));
-    $(".lchips").innerHTML = [...fresh].reverse().map(id => { const s = byId.get(id), L = answers.get(id); return `<span class="lchip ${colorOf(L)}">${esc(firstName(s.name))} <b>${L}</b></span>`; }).join("");
+    $(".lchips").innerHTML = proj ? "" : [...fresh].reverse().map(id => { const s = byId.get(id), L = answers.get(id); return `<span class="lchip ${colorOf(L)}">${esc(firstName(s.name))} <b>${L}</b></span>`; }).join("");
     const d = $(".ldrawer"); d.hidden = !drawerOpen;
     if (drawerOpen) {
       const tiltedNames = students.filter(s => !answers.has(s.id) && everTilted.has(s.card)).map(s => s.name);
@@ -86,13 +113,15 @@ export function openLive(opts) {
       const { student: st, enrolled } = lookup(it.card);
       const kept = deb.committed.get(it.card);
       let label, col, thick = true;
-      if (!st) { label = `#${it.card}`; col = "#9aa08a"; }
+      if (proj) { label = ""; col = kept ? "#f3c623" : "#ffffff"; thick = !!kept; } // no names or letters on a shared screen
+      else if (!st) { label = `#${it.card}`; col = "#9aa08a"; }
       else if (!enrolled) { label = `#${it.card} not in class`; col = "#f3c623"; }
       else if (!it.letter) { label = `${firstName(st.name)} tilted`; col = "#f3c623"; }
       else { label = `${firstName(st.name)} ${it.letter}`; col = kept === it.letter ? COL[colorOf(it.letter)] : "#ffffff"; thick = kept === it.letter; }
       const pts = it.corners.map(p => ({ x: ox + p.x * k, y: oy + p.y * k }));
       x.lineWidth = thick ? 4 : 2; x.strokeStyle = col; x.beginPath();
       pts.forEach((p, i) => (i ? x.lineTo : x.moveTo).call(x, p.x, p.y)); x.closePath(); x.stroke();
+      if (!label) continue;
       const cx = pts.reduce((a, p) => a + p.x, 0) / 4, cy = pts.reduce((a, p) => a + p.y, 0) / 4;
       x.font = "bold 17px system-ui, sans-serif"; const w = x.measureText(label).width;
       x.fillStyle = "rgba(0,0,0,.72)"; x.fillRect(cx - w / 2 - 6, cy - 13, w + 12, 26);
@@ -112,7 +141,7 @@ export function openLive(opts) {
     if (closed || !idle.length) return;
     const vw = video.videoWidth, vh = video.videoHeight;
     if (!vw || !vh) { schedule(); return; }
-    const k = Math.min(1, MAX_SIDE / Math.max(vw, vh)), w = Math.round(vw * k), h = Math.round(vh * k);
+    const k = Math.min(1, SIZES[settings.res === "far" && canFar !== false ? "far" : "fast"][0] / Math.max(vw, vh)), w = Math.round(vw * k), h = Math.round(vh * k);
     if (!grab || grab.width !== w || grab.height !== h) {
       grab = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : Object.assign(document.createElement("canvas"), { width: w, height: h });
       gctx = grab.getContext("2d", { willReadFrequently: true });
@@ -129,6 +158,7 @@ export function openLive(opts) {
     if (r.seq <= lastSeq) { schedule(); return; } // an older frame finished after a newer one: skip it
     lastSeq = r.seq;
     last = r; lastMs = r.ms || 0;
+    if (r.items.length && !seen) { seen = true; $(".lhint").hidden = true; }
     const now = performance.now(); rates.push(now); rates = rates.filter(t => now - t < 2000);
     const { changes, tilted } = deb.feed(r.items.map(it => ({ card: it.card, letter: it.letter })));
     for (const c of tilted) everTilted.add(c);
@@ -157,7 +187,7 @@ export function openLive(opts) {
     }
     showMsg(`<b>Starting the camera…</b>`);
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } });
+      stream = await openStream();
     } catch (e) {
       if (closed) return;
       const denied = e?.name === "NotAllowedError" || e?.name === "SecurityError";
@@ -167,13 +197,7 @@ export function openLive(opts) {
       return;
     }
     if (closed) { stream.getTracks().forEach(t => t.stop()); return; }
-    const track = stream.getVideoTracks()[0];
-    try {
-      if (track.getCapabilities?.().focusMode?.includes("continuous")) await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-    } catch { /* focus mode is optional */ }
-    mirrored = track.getSettings?.().facingMode === "user"; // a front camera flips B and D
-    video.srcObject = stream;
-    try { await video.play(); } catch { /* autoplay with muted + playsinline should be allowed */ }
+    await useStream();
     showMsg("");
     while (workers.length < WORKERS) {
       const w = new Worker(new URL("./scan-worker.js", import.meta.url), { type: "module" });
@@ -182,6 +206,37 @@ export function openLive(opts) {
       workers.push(w); idle.push(w);
     }
     keepAwake();
+    schedule();
+    setTimeout(() => { if (!closed && !seen && stream) hint("No cards seen yet. Turn on the lights, hold the phone steady, and keep whole cards in view."); }, 10_000);
+  }
+
+  function openStream() {
+    const [w, h] = SIZES[settings.res === "far" && canFar !== false ? "far" : "fast"];
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "environment", width: { ideal: w }, height: { ideal: h } } });
+  }
+  async function useStream() {
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities?.() || {};
+    if (caps.width?.max && caps.height?.max) canFar = Math.max(caps.width.max, caps.height.max) >= 3840 && Math.min(caps.width.max, caps.height.max) >= 2160;
+    paintRes();
+    try {
+      if (caps.focusMode?.includes("continuous")) await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+    } catch { /* focus mode is optional */ }
+    mirrored = track.getSettings?.().facingMode === "user"; // a front camera flips B and D
+    video.srcObject = stream;
+    try { await video.play(); } catch { /* autoplay with muted + playsinline should be allowed */ }
+  }
+  // Far ↔ Fast: reopen the camera at the other size. The reads so far are kept.
+  async function switchRes(res) {
+    settings.res = res; opts.saveSettings?.(settings); paintRes();
+    if (!stream || closed) return;
+    stream.getTracks().forEach(t => t.stop());
+    try { stream = await openStream(); }
+    catch (e) { stream = null; showMsg(`<b>Couldn't switch the camera.</b><p>${esc(e?.message || "")}</p><button class="lbtn primary" data-l="retry">Try again</button>`); return; }
+    if (closed) { stream.getTracks().forEach(t => t.stop()); return; }
+    await useStream();
+    const s = stream.getVideoTracks()[0].getSettings?.() || {};
+    if (s.width) hint(`Camera: ${Math.max(s.width, s.height)}×${Math.min(s.width, s.height)}`);
     schedule();
   }
 
@@ -208,6 +263,8 @@ export function openLive(opts) {
     workers.forEach(w => w.terminate());
     wakeLock?.release().catch(() => {});
     el.remove(); document.body.classList.remove("living");
+    behind.forEach(x => x.inert = false);
+    if (before?.isConnected) before.focus({ preventScroll: true });
     if (popHistory && history.state?.live) history.back();
     if (keep) opts.onDone({ reads: [...deb.committed].map(([card, letter]) => ({ card, letter })), tilted: [...everTilted] });
     else opts.onCancel?.();
@@ -226,13 +283,15 @@ export function openLive(opts) {
       case "keepgoing": conf.hidden = true; break;
       case "settings": panel.hidden = !panel.hidden; b.setAttribute("aria-expanded", String(!panel.hidden)); break;
       case "missing": drawerOpen = !drawerOpen; paint(); break;
-      case "retry": start(); break;
+      case "retry": if (!stream) start(); break;
       case "photo": finish(false); opts.onPhoto?.(); break;
     }
   });
   el.addEventListener("change", e => {
+    if (e.target.name === "lres") { switchRes(e.target.value); return; }
     const k = e.target.dataset.s; if (!k) return;
     settings[k] = e.target.checked; opts.saveSettings?.(settings);
+    if (k === "projector") proj = e.target.checked;
     $(".ldebug").hidden = !settings.debug; paint(); drawOverlay();
   });
 

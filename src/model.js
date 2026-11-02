@@ -40,3 +40,15 @@ export function addClass(data, name) {
   data.classes[id] = { name: n, color, order: Math.max(0, ...all.map(c => c.order || 0)) + 1, archived: false, studentIds: [] };
   return id;
 }
+
+// Weekly backup reminder: due when the last backup (or, before the first one, the day this phone
+// started keeping data) is 7 or more days ago. "Not now" snoozes it for a day. Only once there's
+// something worth saving. settings: { started, backedUp, backupSnooze } (times in ms).
+export const WEEK = 7 * 24 * 3600 * 1000;
+export function backupDue(data, now = Date.now()) {
+  const st = data.settings || {};
+  if (!Object.keys(data.students || {}).length) return false;
+  if (st.backupSnooze && now < st.backupSnooze) return false;
+  const since = st.backedUp || st.started;
+  return !since || now - since >= WEEK;
+}

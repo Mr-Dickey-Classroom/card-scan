@@ -83,7 +83,7 @@ test("re-uploading a set with scanned answers asks Replace or Keep both, and Rep
   await page.getByRole("button", { name: "Import 1 set" }).click();
   await page.locator(".setitem").click();
   await page.locator(".srow .ans").click();
-  await page.locator(".picker").getByRole("button", { name: "C", exact: true }).click();
+  await page.locator(".picker").getByRole("button", { name: /: C$/ }).click();
   await page.getByRole("button", { name: "← All sets" }).click();
 
   const v2 = [HEAD, "8th Math,2026-11-09,L10,1,Fixed,,,,,C", "8th Math,2026-11-09,L10,2,New one,,,,,A"].join("\n");

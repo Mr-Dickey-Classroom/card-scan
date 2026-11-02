@@ -2,6 +2,37 @@
 
 Where the build stands, milestone by milestone (BUILD_BRIEF section 7). Newest at the top.
 
+## Milestone 4: classroom polish (built 2026-11-02, waiting on a classroom trial)
+
+- **Projector view.** On a set, tap **Projector view**: the question, its choices and
+  "4 / 5 answered" in big text on a dark screen, for mirroring the phone to the classroom screen.
+  No names, ever. **Show answer** highlights the right choice and shows how many picked each letter
+  and the percent who got it. ← → change the question. **Live scan** from here opens in projector mode.
+  On a computer, the arrow keys change the question and Esc closes it.
+- **Projector mode in the live scan** (⚙ → *Projector mode*): the question in big text and the count.
+  No name chips, and the boxes on the cards have no names or letters. Remembered for next time.
+- **Far / Fast camera** (⚙ in the live scan). Fast asks for 1080p; Far asks for 4K, to read small
+  cards at the back of the room (fewer frames a second). Phones without 4K show Far greyed out with
+  a note. Switching keeps the cards already read. Remembered for next time.
+- **Weekly backup reminder.** A gentle banner on Bell work and Roster when there's no backup from
+  the last 7 days: **Download backup** or **Not now** (asks again tomorrow). A new phone gets a week
+  before the first reminder. The Cards tab shows the date of the last backup.
+- **Accessibility.** Every button and box has a name a screen reader can read (the answer picker
+  says "Ava Martinez: C"). A clear focus ring, including on yellow buttons. The live scan and the
+  projector view hold keyboard focus and hand it back when closed. "Reduce motion" on the phone turns
+  off all animation.
+- **Helpful empty screens.** No bell work yet: the two ways to start. No students: a **Go to Roster**
+  button. Reports says why it's empty (no students, no sets, nothing in this week, nothing scanned
+  yet) with the button that fixes it. The live scan suggests more light after 10 s with no cards.
+- Hiding classes was done earlier (see below).
+- Tests: `tests/unit/backup-reminder.test.js` and `tests/scanner/polish.spec.js` (projector view, live
+  projector mode, Far/Fast with a fake 4K camera, the reminder, control names, reduced motion, empty
+  screens). The fake camera moved to `tests/scanner/fake-camera.js`. 101 logic tests and 27 browser tests pass.
+
+**Still to do for Milestone 4:** the classroom trial (BUILD_BRIEF section 9), then fix what it shows.
+Not built yet from section 3 of the brief: the **Students** screen (everyone, with their card number
+and classes, sortable, printable as "Who has which card", and deleting a student).
+
 ## Ready for other teachers (2026-11-01)
 
 Other teachers open the same link and install it. Each phone keeps its own classes and students.
@@ -110,6 +141,7 @@ Still to check: scanning 4 cards on a desk from about 10 ft on your Android phon
 Vite project, the prototype's logic split into tested modules, scanner tests (synthetic photos and
 `room.jpg` reading A B C D A B C D), and photo scanning in the app.
 
-## Next: Milestone 4
+## Next
 
-Classroom polish: projector view, the weekly backup reminder, the Far/Fast camera toggle (adding and hiding classes are done), accessibility, and helpful empty states. Then a real classroom trial.
+Finish Milestone 4 with the classroom trial. Milestone 5 (sync between phones) is optional, and only
+after STCS confirms that storing student names in a cloud service is allowed.

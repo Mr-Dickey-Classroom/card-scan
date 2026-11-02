@@ -4,7 +4,7 @@ import "./styles.css";
 import cardsPdfUrl from "../reference/STCS_Answer_Cards_1-40.pdf?url";
 import templateCsvUrl from "../reference/csv/questions_TEMPLATE.csv?url";
 import { MAX_CARDS, detectMulti, fileToCanvas, angleToLetter } from "./detect.js";
-import { LETTERS, uid, todayISO, addClass } from "./model.js";
+import { LETTERS, uid, todayISO, addClass, backupDue } from "./model.js";
 import { load, save } from "./storage.js";
 import { classStudents, planAdd, applyAdd, parseNames, setCard, renameStudent, unenroll, enroll, notInClass, matchCard, shortName, perClass, cardHolders, setCardMode } from "./roster.js";
 import { setPct, qProgress, sortSets, reportSets, reportRows, reteachList } from "./scoring.js";
@@ -22,6 +22,7 @@ const S = {
   report: { range: "week", chosen: [] }, rosterEdit: null, confirm: null,
   addPlan: null, existing: null, restore: null, restored: null, update: null, newClass: null, setup: false, cardModeErr: null,
   qImport: null, rImport: null, // CSV uploads waiting in a preview: { name, text, classMap, dec }
+  proj: false, projReveal: false, // projector view: open, and whether the answer is showing
 };
 function lsGet(k) { try { return localStorage.getItem("cardscan:" + k); } catch { return null; } }
 function lsSet(k, v) { try { localStorage.setItem("cardscan:" + k, v); } catch { /* not important */ } }
@@ -98,6 +99,9 @@ function startLive() {
   openLive({
     title: `Q${q + 1}${set.questions.length > 1 ? ` of ${set.questions.length}` : ""}`,
     correct: question?.correct || "",
+    question: question?.text || "",
+    projector: S.proj, // started from the projector view: hide names and answers
+    inert: S.proj ? ["#proj"] : [],
     students: students(),
     existing: set.answers?.[q] || {},
     lookup: card => matchCard(S.data, S.cls, card),
@@ -107,8 +111,10 @@ function startLive() {
       const s2 = curSet(); if (s2 !== set) return;
       S.lastScan = { q, live: true, reads, tilted };
       applyLive(set, S.lastScan);
-      window.scrollTo(0, 0);
+      if (!S.proj) window.scrollTo(0, 0);
+      (S.proj ? $("#proj [data-act='live']") : $("#view [data-act='live']"))?.focus({ preventScroll: true });
     },
+    onCancel: () => (S.proj ? $("#proj [data-act='live']") : $("#view [data-act='live']"))?.focus({ preventScroll: true }),
     onPhoto: () => { $("#camIn").value = ""; $("#camIn").click(); },
   });
 }
@@ -143,6 +149,54 @@ function render() {
   else v.innerHTML = viewCards();
   if (S.tab === "sets" && curSet() && S.lastScan && S.lastScan.q === S.q) drawPreview();
   window.scrollTo(0, keepScroll);
+  renderProjector();
+}
+
+// ---------- projector view ----------
+// Big text for the class to see (mirror the phone to the projector): the question, its choices and
+// how many have answered. It never shows who answered what. "Show answer" adds the class totals.
+function renderProjector() {
+  const p = $("#proj"), open = S.proj && S.tab === "sets" && !!curSet();
+  if (!open && S.proj) S.proj = false;
+  const was = !p.hidden;
+  p.hidden = !open;
+  document.body.classList.toggle("projecting", open);
+  for (const sel of ["header.top", "main"]) $(sel).inert = open;
+  if (!open) return;
+  // keep keyboard focus on the same button across redraws (or the next one, if it just got disabled)
+  const focused = p.contains(document.activeElement) ? document.activeElement.dataset.act : null;
+  p.innerHTML = viewProjector();
+  const f = focused && (p.querySelector(`[data-act="${focused}"]:not(:disabled)`) || p.querySelector('[data-act="projreveal"]'));
+  (f || (!was && p.querySelector('[data-act="projclose"]')))?.focus({ preventScroll: true });
+}
+
+function viewProjector() {
+  const set = curSet(), qs = set.questions || [], q = qs[S.q] || {}, sts = students(), qa = set.answers?.[S.q] || {};
+  const letters = sts.map(s => qa[s.id]).filter(Boolean), n = letters.length;
+  const graded = LETTERS.includes(q.correct), reveal = S.projReveal;
+  const counts = LETTERS.map(L => letters.filter(x => x === L).length);
+  const hasChoices = q.choices?.some(Boolean);
+  const choices = hasChoices || reveal ? `<ol class="pchoices">${LETTERS.map((L, j) => {
+    const right = reveal && graded && q.correct === L;
+    return `<li class="${right ? "right" : ""}"><b>${L}</b><span class="pt">${esc(q.choices?.[j] || "")}${right ? ` <span class="sr">(correct)</span>` : ""}</span>
+      ${reveal ? `<span class="pbar" aria-hidden="true"><span style="width:${n ? Math.round(100 * counts[j] / n) : 0}%"></span></span><span class="pn">${counts[j]}</span>` : ""}</li>`;
+  }).join("")}</ol>` : "";
+  const pct = graded && n ? Math.round(100 * counts[LETTERS.indexOf(q.correct)] / n) : null;
+  return `<div class="ptop"><span>${esc(curClass()?.name || "")} · ${esc(set.title || "Bell work")}</span>
+      <button class="lbtn" data-act="projclose" aria-label="Close projector view">✕</button></div>
+    <div class="pmain">
+      <div class="pq">Question ${S.q + 1}${qs.length > 1 ? ` of ${qs.length}` : ""}</div>
+      ${q.text ? `<p class="ptext">${esc(q.text)}</p>` : ""}
+      ${choices}
+      <div class="pcount" aria-live="polite"><b>${n}</b> / ${sts.length} answered</div>
+      ${reveal ? `<div class="presult">${graded ? `Correct answer: <b>${q.correct}</b>${pct === null ? "" : ` · ${pct}% got it`}` : q.correct === "ANY" ? "Survey question: every answer counts." : "No correct answer set for this question."}</div>` : ""}
+    </div>
+    <div class="pbottom">
+      <button class="lbtn" data-act="projprev" ${S.q > 0 ? "" : "disabled"} aria-label="Previous question">←</button>
+      <button class="lbtn wide" data-act="projreveal" aria-pressed="${reveal}">${reveal ? "Hide answer" : "Show answer"}</button>
+      <button class="lbtn wide primary" data-act="live" ${sts.length ? "" : "disabled"}>Live scan</button>
+      <button class="lbtn" data-act="projnext" ${S.q < qs.length - 1 ? "" : "disabled"} aria-label="Next question">→</button>
+    </div>`;
 }
 
 function banner() {
@@ -155,8 +209,12 @@ function banner() {
     <div class="row"><button class="btn primary" data-act="setup2">Save my classes</button><button class="btn" data-act="setupskip">Use the example classes</button></div></div>`;
   if (S.update) return `<div class="note info row" style="align-items:center;justify-content:space-between"><span><b>A new version of Card Scan is ready.</b></span><button class="btn sm primary" data-act="update">Update now</button></div>`;
   if (S.mode === "memory") return `<div class="note"><b>Not saving.</b> This browser is blocking storage (a private window, maybe). Download a backup on the Cards tab before you close the page.</div>`;
+  if (backupDue(S.data)) return `<div class="note info backupdue"><span><b>Time for this week's backup.</b> Your classes are saved on this phone only. A backup file keeps them safe if the phone is lost or replaced.</span>
+    <div class="row" style="margin-top:8px"><button class="btn sm primary" data-act="backup">Download backup</button><button class="btn sm ghost" data-act="backupsnooze">Not now</button></div></div>`;
   return "";
 }
+
+const goTab = (t, label) => `<button class="btn" data-act="gotab" data-t="${t}">${label}</button>`;
 
 function viewNewClass() {
   const hidden = Object.entries(S.data.classes).filter(([, c]) => c.archived);
@@ -182,8 +240,15 @@ function viewSets() {
   ${S.qImport ? viewQImport() : `<div class="row"><button class="btn" data-act="qupload">Upload questions (CSV)</button>
     ${list.length ? `<button class="btn sm" data-act="qdownclass">Download as CSV</button>` : ""}
     <a class="btn sm ghost" href="${templateCsvUrl}" download="questions_TEMPLATE.csv">Blank template</a></div>`}
-  ${n === 0 ? `<div class="note info">Add your students on the <b>Roster</b> tab first, so scanned cards match names.</div>` : ""}
-  ${list.length ? `<div class="setlist">${items}</div>` : `<div class="panel empty"><b>No bell work yet</b><span>Make a set for today: choose how many questions and the correct letters. Then scan the room for each question.</span><button class="btn primary" data-act="newset">+ New set</button></div>`}`;
+  ${n === 0 ? `<div class="note info row spread"><span>Add your students on the <b>Roster</b> tab first, so scanned cards match names.</span>${goTab("roster", "Go to Roster")}</div>` : ""}
+  ${list.length ? `<div class="setlist">${items}</div>` : `<div class="panel empty"><b>No bell work yet</b>
+    <span>Two ways to start:</span>
+    <ol class="steps" style="text-align:left">
+      <li><b>+ New set</b> for today: pick how many questions and the correct letters (or paste them, like <b>B A C A</b>).</li>
+      <li><b>Upload questions (CSV)</b> (above) from Excel or Google Sheets. One file can hold a whole week for every class. Start from the <b>Blank template</b>.</li>
+    </ol>
+    <span>Then open the set and tap <b>Live scan</b> for each question.</span>
+    <button class="btn primary" data-act="newset">+ New set</button></div>`}`;
 }
 
 const classOptions = (sel = "") => classList().map(c => `<option value="${c.id}" ${c.id === sel ? "selected" : ""}>${esc(c.name)}</option>`).join("");
@@ -247,7 +312,7 @@ function viewNewSet() {
       <div class="row spread"><h3>Question ${i + 1}</h3>${ns.questions.length > 1 ? `<button class="btn sm ghost danger" data-act="nsdel" data-i="${i}">Remove</button>` : ""}</div>
       <label class="f">Question text (optional)<input type="text" data-ns="text" data-i="${i}" value="${esc(q.text)}" placeholder="e.g. Where is the image of (6, −4)?"></label>
       <details ${q.choices?.some(Boolean) ? "open" : ""}><summary class="sub" style="cursor:pointer">Answer choices (optional)</summary>${choiceInputs(q.choices, j => `data-ns="choice" data-i="${i}" data-j="${j}"`)}</details>
-      <div class="row"><span class="sub">Correct answer</span><div class="letters">${LETTERS.map(L => `<button class="letter" data-act="nscorrect" data-i="${i}" data-l="${L}" aria-pressed="${q.correct === L}">${L}</button>`).join("")}<button class="letter any" data-act="nscorrect" data-i="${i}" data-l="ANY" aria-pressed="${q.correct === "ANY"}">Survey</button></div></div>
+      <div class="row"><span class="sub">Correct answer</span><div class="letters">${LETTERS.map(L => `<button class="letter" data-act="nscorrect" data-i="${i}" data-l="${L}" aria-pressed="${q.correct === L}" aria-label="Question ${i + 1} correct answer ${L}">${L}</button>`).join("")}<button class="letter any" data-act="nscorrect" data-i="${i}" data-l="ANY" aria-pressed="${q.correct === "ANY"}" aria-label="Question ${i + 1} is a survey">Survey</button></div></div>
     </div>`).join("");
   return `<div class="row spread"><h2>New bell work set</h2><button class="btn ghost" data-act="nscancel">Cancel</button></div>
   <div class="panel">
@@ -256,7 +321,7 @@ function viewNewSet() {
     <details><summary class="sub" style="cursor:pointer">Paste questions instead</summary>
       <div style="display:grid;gap:8px;margin-top:8px">
         <p class="sub">Paste numbered questions with a <b>CORRECT: B</b> line under each, like the Plickers text file. Or paste just the letters, like <b>B A C A</b>.</p>
-        <textarea id="nsPaste" placeholder="1. Which point is the center of dilation?&#10;   A. point A&#10;   CORRECT: C"></textarea>
+        <textarea id="nsPaste" aria-label="Pasted questions" placeholder="1. Which point is the center of dilation?&#10;   A. point A&#10;   CORRECT: C"></textarea>
         <button class="btn" data-act="nsparse">Fill in from pasted text</button>
       </div></details>
   </div>
@@ -274,7 +339,7 @@ function viewSet() {
   const answered = sts.filter(s => qa[s.id]).length;
   const correctN = q?.correct && q.correct !== "ANY" ? sts.filter(s => qa[s.id] === q.correct).length : null;
   const d = fmtDay(set.date || todayISO());
-  const pills = qs.map((x, i) => `<button class="qpill" data-act="q" data-i="${i}" aria-pressed="${i === S.q}">Q${i + 1}<span class="bar"><span style="width:${Math.round(qProgress(set, i, sts) * 100)}%"></span></span></button>`).join("");
+  const pills = qs.map((x, i) => `<button class="qpill" data-act="q" data-i="${i}" aria-pressed="${i === S.q}" aria-label="Question ${i + 1}, ${Math.round(qProgress(set, i, sts) * 100)}% scanned">Q${i + 1}<span class="bar"><span style="width:${Math.round(qProgress(set, i, sts) * 100)}%"></span></span></button>`).join("");
   const sm = S.lastScan && S.lastScan.q === S.q ? S.lastScan.summary : null;
   const scanNote = sm ? `<div class="note">
       <b>Read ${plural(sm.read, "card")}</b> ${S.lastScan.live ? "in the live scan" : "from this photo"}.
@@ -289,7 +354,7 @@ function viewSet() {
     const cls = !a ? "" : q?.correct === "ANY" ? "any" : q?.correct ? (a === q.correct ? "ok" : "bad") : "";
     return `<div class="srow"><span class="card">#${s.card}</span><span class="name">${esc(s.name)}</span>
       <button class="ans ${cls}" data-act="pick" data-sid="${s.id}" aria-label="${esc(s.name)}: ${a || "no answer"}. Tap to change.">${a || "—"}</button>
-      ${S.pick === s.id ? `<div class="picker">${LETTERS.map(L => `<button class="letter" data-act="setans" data-sid="${s.id}" data-l="${L}" aria-pressed="${a === L}">${L}</button>`).join("")}<button class="btn sm" data-act="setans" data-sid="${s.id}" data-l="">Clear</button></div>` : ""}</div>`;
+      ${S.pick === s.id ? `<div class="picker">${LETTERS.map(L => `<button class="letter" data-act="setans" data-sid="${s.id}" data-l="${L}" aria-pressed="${a === L}" aria-label="${esc(s.name)}: ${L}">${L}</button>`).join("")}<button class="btn sm" data-act="setans" data-sid="${s.id}" data-l="" aria-label="Clear ${esc(s.name)}'s answer">Clear</button></div>` : ""}</div>`;
   }).join("");
   return `<div class="row spread"><button class="btn ghost sm" data-act="back">← All sets</button>
     <button class="btn sm" data-act="editset">${S.editing ? "Done" : "Edit"}</button></div>
@@ -308,11 +373,12 @@ function viewSet() {
     <button class="scanbtn" data-act="live" ${sts.length ? "" : "disabled"}>${CAM} Live scan</button>
     <div class="row"><button class="btn sm" data-act="scan" ${sts.length ? "" : "disabled"}>Take photo of room</button>
       <button class="btn sm" data-act="pickphoto" ${sts.length ? "" : "disabled"}>Use a photo you already took</button>
+      <button class="btn sm" data-act="projopen">Projector view</button>
       ${S.q < qs.length - 1 ? `<button class="btn sm dark" data-act="q" data-i="${S.q + 1}">Next: Q${S.q + 2} →</button>` : ""}</div>
     ${scanNote}
     ${sm && !S.lastScan.live ? `<div class="photo"><canvas id="preview"></canvas></div>` : ""}
   </div>
-  ${sts.length ? `<div class="roster" aria-label="Answers">${rows}</div><p class="sub">Tap an answer to change it by hand. A new scan overwrites only the cards it reads.</p>` : `<div class="note info">No students on the roster yet. Add them on the Roster tab.</div>`}`;
+  ${sts.length ? `<div class="roster" aria-label="Answers">${rows}</div><p class="sub">Tap an answer to change it by hand. A new scan overwrites only the cards it reads.</p>` : `<div class="note info row spread"><span>No students in ${esc(curClass()?.name)} yet. Add them on the Roster tab, then scan.</span>${goTab("roster", "Go to Roster")}</div>`}`;
 }
 
 function viewEditSet(set) {
@@ -367,8 +433,8 @@ function viewRoster() {
     <div class="row"><button class="btn primary" data-act="addnames">Add to roster</button><span class="sub">New students get the lowest free card number${pc ? " in this class" : ". Students already in another class keep theirs"}.</span></div>`}
   </div>
   ${viewExisting()}
-  ${sts.length ? `<div class="roster">${rows}</div>` : `<div class="panel empty"><b>No students yet</b><span>Paste your class list above. Names stay on this device. Nothing is uploaded.</span></div>`}
-  <div class="panel"><h3>Class name</h3><div class="row" style="flex-wrap:nowrap"><input type="text" id="className" value="${esc(c?.name || "")}"><button class="btn" data-act="rename">Rename</button></div>
+  ${sts.length ? `<div class="roster">${rows}</div>` : `<div class="panel empty"><b>No students in ${esc(c?.name || "this class")} yet</b><span>Paste your class list above, one name per line, or upload a roster file.${notInClass(S.data, S.cls).length ? " Students from your other classes are under <b>Add existing students</b>: they keep their card numbers." : ""} Each new student gets the next free card number.</span><span>Names stay on this phone. Nothing is uploaded.</span></div>`}
+  <div class="panel"><h3>Class name</h3><div class="row" style="flex-wrap:nowrap"><input type="text" id="className" aria-label="Class name" value="${esc(c?.name || "")}"><button class="btn" data-act="rename">Rename</button></div>
     ${classList().length < 2 ? "" : S.confirm === "hidecls" ? `<div class="row"><span class="sub">Hide ${esc(c?.name)}? Its students and bell work are kept. Bring it back any time from <b>+ Add class</b>.</span><button class="btn sm danger" data-act="hidecls2">Hide class</button><button class="btn sm" data-act="cancelconfirm">Cancel</button></div>`
       : `<div class="row"><button class="btn sm" data-act="hidecls">Hide this class…</button></div>`}</div>`;
 }
@@ -400,10 +466,16 @@ function viewExisting() {
 function curReportSets() { return reportSets(classSets(), S.report.range, S.report.chosen); }
 function viewReports() {
   const sets = curReportSets(), sts = students(), r = S.report;
-  const rangeBtns = [["week", "This week"], ["last", "Last week"], ["all", "All"], ["pick", "Choose…"]].map(([k, l]) => `<button class="btn sm ${r.range === k ? "dark" : ""}" data-act="range" data-r="${k}">${l}</button>`).join("");
+  const rangeBtns = [["week", "This week"], ["last", "Last week"], ["all", "All"], ["pick", "Choose…"]].map(([k, l]) => `<button class="btn sm ${r.range === k ? "dark" : ""}" data-act="range" data-r="${k}" aria-pressed="${r.range === k}">${l}</button>`).join("");
   const picker = r.range === "pick" ? `<div class="panel" style="gap:0">${sortSets(classSets()).map(s => `<label class="check"><input type="checkbox" data-act="choose" value="${s.id}" ${r.chosen.includes(s.id) ? "checked" : ""}> ${esc(fmtDay(s.date).long)} · ${esc(s.title)}</label>`).join("") || `<span class="sub">No sets yet.</span>`}</div>` : "";
-  if (!sets.length || !sts.length) return `<div class="row spread"><h2>Reports</h2></div><div class="row">${rangeBtns}</div>${picker}
-    <div class="panel empty"><b>Nothing to report yet</b><span>${!sts.length ? "Add students on the Roster tab." : "No bell work sets in this range. Try “All”."}</span></div>`;
+  const anySets = Object.keys(classSets()).length;
+  const scanned = sets.some(s => Object.values(s.answers || {}).some(qa => Object.keys(qa).length));
+  const empty = !sts.length ? [`No students in ${esc(curClass()?.name)} yet`, "Reports show each student's bell work scores. Add students first.", goTab("roster", "Go to Roster")]
+    : !anySets ? ["No bell work yet", "Make a bell work set and scan the room. Scores show up here right away.", goTab("sets", "Go to Bell work")]
+    : !sets.length ? ["Nothing in this range", r.range === "pick" ? "Tick the sets you want above." : `No bell work sets ${r.range === "week" ? "this week" : "last week"}.`, r.range === "pick" ? "" : `<button class="btn" data-act="range" data-r="all">Show all sets</button>`]
+    : !scanned ? ["Nothing scanned yet", "These sets have no answers yet. Open one on Bell work and tap Live scan.", goTab("sets", "Go to Bell work")] : null;
+  if (empty) return `<div class="row spread"><h2>Reports</h2></div><div class="row">${rangeBtns}</div>${picker}
+    <div class="panel empty"><b>${empty[0]}</b><span>${empty[1]}</span>${empty[2]}</div>`;
   const rows = reportRows(sets, sts);
   let totC = 0, totG = 0;
   const body = rows.map(row => {
@@ -447,9 +519,12 @@ function viewCards() {
       <li>Good light matters more than distance. Turn on the lights; avoid a bright window behind the students.</li>
       <li>Missed a few? Tap <b>Missing</b> to see who. A second scan or photo adds the cards it reads without erasing the others.</li>
       <li>Cards tilted more than about a third of a turn are skipped rather than guessed. The app tells you whose.</li>
+      <li>Cards in the back row not reading? In the live scan, tap ⚙ and choose <b>Far</b> (4K), if your phone offers it.</li>
+      <li>Showing the class? Open a set, tap <b>Projector view</b>, and mirror (Cast) the phone to the classroom screen. It shows the question and how many have answered, never names.</li>
     </ul></div>
   <div class="panel"><h3>Backup</h3>
     <p class="sub" style="margin:0">Your data is saved on this phone only. Download a backup each week, and restore it if you switch phones or clear your browser. Old backups from the first version of the app work too.</p>
+    <p class="sub" style="margin:0">${S.data.settings?.backedUp ? `Last backup from this phone: <b>${esc(new Date(S.data.settings.backedUp).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }))}</b>.` : "No backup made on this phone yet."} The app reminds you if it's been a week.</p>
     <div class="row"><button class="btn primary" data-act="backup">Download backup</button><button class="btn" data-act="restore">Restore from backup…</button></div>
     ${restoreNote}${restoredNote}
   </div>
@@ -559,9 +634,17 @@ document.addEventListener("click", e => {
     case "rename": { const n = $("#className").value.trim(); if (n) { c.name = n; commit(); toast("Renamed"); } break; }
     case "range": S.report.range = b.dataset.r; render(); break;
     case "csvsum": case "csvdet": exportCSV(act === "csvdet"); break;
-    case "backup": download(`STCS_Card_Scan_backup_${todayISO()}.json`, JSON.stringify(buildBackup(S.data)), "application/json"); break;
+    case "backup": {
+      const st = (S.data.settings ||= {}); st.backedUp = Date.now(); delete st.backupSnooze;
+      download(`STCS_Card_Scan_backup_${todayISO()}.json`, JSON.stringify(buildBackup(S.data)), "application/json"); commit(); break; }
+    case "backupsnooze": (S.data.settings ||= {}).backupSnooze = Date.now() + 24 * 3600 * 1000; commit(); toast("Backup reminder snoozed until tomorrow"); break;
+    case "gotab": S.tab = b.dataset.t; lsSet("tab", S.tab); S.confirm = null; render(); window.scrollTo(0, 0); $(`#tabs [data-tab="${S.tab}"]`)?.focus(); break;
+    case "projopen": S.proj = true; S.projReveal = false; render(); break;
+    case "projclose": S.proj = false; render(); $("#view [data-act='projopen']")?.focus({ preventScroll: true }); break;
+    case "projprev": case "projnext": S.q = Math.max(0, Math.min((set?.questions.length || 1) - 1, S.q + (act === "projnext" ? 1 : -1))); S.projReveal = false; S.pick = null; render(); break;
+    case "projreveal": S.projReveal = !S.projReveal; render(); break;
     case "restore": $("#restoreIn").value = ""; $("#restoreIn").click(); break;
-    case "restore2": if (S.restore?.data) { S.data = S.restore.data; S.restored = S.restore.changes; S.setup = false; S.restore = null; if (!S.data.classes[S.cls]) S.cls = "math8"; commit(); toast("Backup restored"); } break;
+    case "restore2": if (S.restore?.data) { S.data = S.restore.data; (S.data.settings ||= {}).started ||= Date.now(); S.restored = S.restore.changes; S.setup = false; S.restore = null; if (!S.data.classes[S.cls]) S.cls = "math8"; commit(); toast("Backup restored"); } break;
     case "install": installPrompt?.prompt(); installPrompt?.userChoice.finally(() => { installPrompt = null; render(); }); break;
     case "update": S.update?.waiting?.postMessage("update"); break;
     case "restoredok": S.restored = null; render(); break;
@@ -662,7 +745,15 @@ function newClass() {
     $(".chip[aria-pressed='true']")?.scrollIntoView({ inline: "nearest", block: "nearest" });
   } catch (err) { S.newClass = name; render(); toast(err.message); }
 }
-document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "newClassName") newClass(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.id === "newClassName") newClass();
+  // projector view on a computer: arrow keys change the question, Escape closes
+  if (S.proj && !document.body.classList.contains("living")) {
+    const act = { ArrowLeft: "projprev", ArrowRight: "projnext", Escape: "projclose" }[e.key];
+    const b = act && $(`#proj [data-act="${act}"]:not(:disabled)`);
+    if (b) { e.preventDefault(); b.click(); }
+  }
+});
 
 // ---------- home screen and offline ----------
 // The service worker (src/sw.js) keeps the app's files on the phone so it opens with no internet.
@@ -686,6 +777,8 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 (async () => {
   const { data, mode, fresh } = await load();
   S.data = data; S.mode = mode; S.setup = fresh && mode === "device";
+  // when this phone started keeping data, for the weekly backup reminder (saved with the next change on a first visit)
+  if (!(S.data.settings ||= {}).started) { S.data.settings.started = Date.now(); if (!fresh && mode === "device") save(S.data).catch(() => {}); }
   if (!S.data.classes[S.cls]) S.cls = "math8";
   setSync(); render();
 })();

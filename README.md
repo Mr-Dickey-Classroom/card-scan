@@ -8,9 +8,9 @@ the original scanner tests. Don't change the card codes: 40 cards are already pr
 
 ## Status
 
-**Milestones 1–3 are done.** The app is online at
+**Milestones 1–3 are done, and Milestone 4 (classroom polish) is built.** The app is online at
 **https://mr-dickey-classroom.github.io/card-scan/**. It installs to the phone's home screen and
-works offline. Next is Milestone 4 (classroom polish).
+works offline. Milestone 4 finishes after a real classroom trial (checklist in `BUILD_BRIEF.md`, section 9).
 
 ## Sharing with other teachers
 
@@ -59,8 +59,13 @@ home network, using a certificate your computer makes for itself.
    A name is recorded after it's seen twice in a row, with a short buzz. The bar at the top counts
    "answered", and **Missing** lists who hasn't been read. Tap **Done** to save.
 
-The ⚙ button in the live view can hide the right/wrong colors (so students can't see them), and can
-show the detection speed for testing. **Take photo of room** still works if the camera won't start.
+The ⚙ button in the live view can hide the right/wrong colors (so students can't see them), turn on
+**Projector mode** (no names or letters on screen), switch the camera between **Fast** (1080p) and
+**Far** (4K, for cards across the room), and show the detection speed for testing.
+
+**Projector view** (on any set): the question, its choices and "14 / 18 answered" in big text, for
+mirroring the phone to the classroom screen. It never shows who answered what. **Show answer** adds
+the class totals for each letter. On a computer, the arrow keys change the question and Esc closes it. **Take photo of room** still works if the camera won't start.
 
 Easier: use the online address above, which is already https, so there's no warning.
 
