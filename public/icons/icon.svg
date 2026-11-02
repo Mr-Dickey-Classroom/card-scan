@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<rect width="512" height="512" rx="96" fill="#1d5b34"/>
+<g transform="translate(256 256) scale(1) translate(-256 -256)">
+<rect x="96" y="77" width="320" height="358" rx="22" fill="#f3c623"/>
+<text x="256" y="152" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="74" fill="#16180f">A</text>
+<g shape-rendering="crispEdges"><rect x="148" y="167" width="216" height="216" fill="#16180f"/><rect x="220" y="203" width="36" height="36" fill="#f3c623"/><rect x="292" y="203" width="36" height="36" fill="#f3c623"/><rect x="184" y="239" width="36" height="36" fill="#f3c623"/><rect x="220" y="275" width="36" height="36" fill="#f3c623"/><rect x="256" y="275" width="36" height="36" fill="#f3c623"/><rect x="220" y="311" width="36" height="36" fill="#f3c623"/><rect x="256" y="311" width="36" height="36" fill="#f3c623"/><rect x="292" y="311" width="36" height="36" fill="#f3c623"/></g>
+</g></svg>

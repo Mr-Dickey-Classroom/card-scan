@@ -20,7 +20,7 @@ const S = {
   cls: lsGet("cls") || "math8", tab: lsGet("tab") || "sets",
   openSet: null, q: 0, pick: null, editing: false, lastScan: null, newSet: null,
   report: { range: "week", chosen: [] }, rosterEdit: null, confirm: null,
-  addPlan: null, existing: null, restore: null,
+  addPlan: null, existing: null, restore: null, update: null,
   qImport: null, rImport: null, // CSV uploads waiting in a preview: { name, text, classMap, dec }
 };
 function lsGet(k) { try { return localStorage.getItem("cardscan:" + k); } catch { return null; } }
@@ -144,6 +144,7 @@ function render() {
 }
 
 function banner() {
+  if (S.update) return `<div class="note info row" style="align-items:center;justify-content:space-between"><span><b>A new version of Card Scan is ready.</b></span><button class="btn sm primary" data-act="update">Update now</button></div>`;
   if (S.mode === "memory") return `<div class="note"><b>Not saving.</b> This browser is blocking storage (a private window, maybe). Download a backup on the Cards tab before you close the page.</div>`;
   return "";
 }
@@ -428,6 +429,12 @@ function viewCards() {
     <p class="sub" style="margin:0">Your data is saved on this phone only. Download a backup each week, and restore it if you switch phones or clear your browser. Old backups from the first version of the app work too.</p>
     <div class="row"><button class="btn primary" data-act="backup">Download backup</button><button class="btn" data-act="restore">Restore from backup…</button></div>
     ${restoreNote}
+  </div>
+  <div class="panel"><h3>Home screen</h3>
+    ${installed() ? `<p class="sub" style="margin:0">Card Scan is installed. It opens from your home screen and works with no internet.</p>`
+      : `<p class="sub" style="margin:0">Put Card Scan on your home screen. It opens like an app and works with no internet, even in airplane mode.</p>
+    ${installPrompt ? `<div class="row"><button class="btn primary" data-act="install">Add to home screen</button></div>`
+      : `<p class="sub" style="margin:0">In Chrome, tap the <b>⋮</b> menu, then <b>Add to home screen</b> (or <b>Install app</b>).</p>`}`}
   </div>`;
 }
 
@@ -519,6 +526,8 @@ document.addEventListener("click", e => {
     case "backup": download(`STCS_Card_Scan_backup_${todayISO()}.json`, JSON.stringify(buildBackup(S.data)), "application/json"); break;
     case "restore": $("#restoreIn").value = ""; $("#restoreIn").click(); break;
     case "restore2": if (S.restore?.data) { S.data = S.restore.data; S.restore = null; if (!S.data.classes[S.cls]) S.cls = "math8"; commit(); toast("Backup restored"); } break;
+    case "install": installPrompt?.prompt(); installPrompt?.userChoice.finally(() => { installPrompt = null; render(); }); break;
+    case "update": S.update?.waiting?.postMessage("update"); break;
     case "restorecancel": S.restore = null; render(); break;
   }
 });
@@ -584,6 +593,24 @@ document.addEventListener("input", e => {
   else if (t.dataset.ns === "choice") { const q = S.newSet.questions[+t.dataset.i]; (q.choices ||= ["", "", "", ""])[+t.dataset.j] = t.value; }
   else S.newSet[t.dataset.ns] = t.value;
 });
+
+// ---------- home screen and offline ----------
+// The service worker (src/sw.js) keeps the app's files on the phone so it opens with no internet.
+// It's only in the built app; `npm run dev` runs without it so changes show up right away.
+let installPrompt = null;
+const installed = () => matchMedia("(display-mode: standalone)").matches;
+const rerender = () => { if (S.data) render(); };
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; rerender(); });
+window.addEventListener("appinstalled", () => { installPrompt = null; rerender(); toast("Card Scan is on your home screen"); });
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").then(reg => {
+    const check = () => { if (reg.waiting && navigator.serviceWorker.controller) { S.update = reg; rerender(); } };
+    check();
+    reg.addEventListener("updatefound", () => reg.installing?.addEventListener("statechange", check));
+  }).catch(() => { /* no offline copy this time; the app still works online */ });
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (S.update && !reloading) { reloading = true; location.reload(); } });
+}
 
 // ---------- start ----------
 (async () => {
