@@ -8,9 +8,16 @@ the original scanner tests. Don't change the card codes: 40 cards are already pr
 
 ## Status
 
-**Milestones 1 and 2 are done:** photo scanning and live camera scanning both work. Next is
-Milestone 3: install the app on the phone's home screen, make it work offline, and put it online
-with GitHub Pages.
+**Milestones 1–3 are done.** The app is online at
+**https://mr-dickey-classroom.github.io/card-scan/**. It installs to the phone's home screen and
+works offline. Next is Milestone 4 (classroom polish).
+
+## Publishing updates
+
+The code lives on GitHub at github.com/Mr-Dickey-Classroom/card-scan. Every time new work is pushed
+(uploaded) to the `main` branch, GitHub rebuilds the app and publishes it in about a minute. You can
+watch it on the repository's **Actions** tab: a green check means it's live. Phones pick up the new
+version next time the app opens, with an **Update now** banner.
 
 ## Everyday commands
 
@@ -23,7 +30,8 @@ Open the Terminal app, go to this folder, and type one of these:
 | `npm run dev -- --host` | Same, but your phone can open it too, if it's on the same Wi-Fi. Photo scanning only. |
 | `npm run dev:phone` | Same, with a secure (https) address, so the phone lets the app use the **live camera**. |
 | `npm test` | Runs every automated check (logic tests, then scanner tests in a real browser). |
-| `npm run build` | Makes the finished app in the `dist/` folder. (Milestone 3 publishes this online.) |
+| `npm run build` | Makes the finished app in the `dist/` folder, the same thing GitHub publishes. |
+| `npm run preview` | Opens the finished app from `dist/`, with offline support, at http://localhost:4173. |
 
 ### Trying it on your phone (live scanning)
 
@@ -46,8 +54,7 @@ home network, using a certificate your computer makes for itself.
 The ⚙ button in the live view can hide the right/wrong colors (so students can't see them), and can
 show the detection speed for testing. **Take photo of room** still works if the camera won't start.
 
-When the app goes online in Milestone 3, GitHub Pages gives it a real https address and the
-certificate warning goes away.
+Easier: use the online address above, which is already https, so there's no warning.
 
 ## How the code is organized
 
@@ -65,6 +72,9 @@ certificate warning goes away.
 | `src/paste.js` | Turns pasted questions or letters into a bell work set. |
 | `src/backup.js` | Backup files, including converting the prototype's old backups. |
 | `src/storage.js` | Saves to the phone (IndexedDB). |
+| `src/sw.js` | The service worker: keeps the app's files on the phone so it opens offline. |
+| `public/` | The manifest and icons. `scripts/make-icons.mjs` redraws the icons. |
+| `.github/workflows/deploy.yml` | Publishes the app to GitHub Pages on every push. |
 | `src/main.js`, `src/styles.css`, `index.html` | The screens. |
 | `tests/unit/` | Logic tests (Vitest). |
 | `tests/scanner/` | Scanner tests in a real browser (Playwright): made-up classroom photos, `room.jpg`, a full run through the app on a phone-sized screen, and live scanning with a fake camera. |

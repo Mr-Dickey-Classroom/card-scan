@@ -2,6 +2,35 @@
 
 Where the build stands, milestone by milestone (BUILD_BRIEF section 7). Newest at the top.
 
+## Milestone 3: installable and online (2026-11-01)
+
+**The app's address:** https://mr-dickey-classroom.github.io/card-scan/
+(code: github.com/Mr-Dickey-Classroom/card-scan, a public repository holding only code and made-up sample names).
+
+**What was built**
+- **Published with GitHub Pages.** `.github/workflows/deploy.yml` runs on every push to `main`:
+  `npm ci`, the logic tests, `npm run build`, then publishes `dist/`. It takes about a minute.
+  Live scan works on Mr. D's Android phone from this address (checked 2026-11-01).
+- **Installable.** `public/manifest.webmanifest` and icons in school colors (yellow card 1 with
+  "A" on top, black marker, green background). `scripts/make-icons.mjs` redraws them. The Cards tab
+  has a **Home screen** panel with an **Add to home screen** button (or Chrome's ⋮ menu steps).
+- **Works offline.** `src/sw.js` is the service worker. `npm run build` fills in the list of every
+  built file and saves it as `dist/sw.js`. The phone keeps a copy of all of them after one visit.
+  When a new version is online, a **"A new version of Card Scan is ready → Update now"** banner
+  shows up. The app never swaps versions in the middle of a scan. There's no service worker under
+  `npm run dev`.
+- **Importing the prototype's backup.** Cards tab → **Restore from backup…** takes version 1
+  (prototype) or version 2 files. The card numbers that change are listed before you restore, and
+  again afterwards until you tap **Done, cards handed out**.
+
+**Tests:** 84 logic tests and 17 browser tests pass (`npm test`). New: `tests/scanner/offline.spec.js`
+builds the app, opens it once, goes offline and reopens it with the roster still there.
+`tests/scanner/restore.spec.js` restores `reference/sample-backup.json` and a v1 file where one
+student has two card numbers.
+
+**Still to check on the phone:** install to the home screen, open in airplane mode, and restore
+Mr. D's real prototype backup.
+
 ## Milestone 1 add-on: CSV uploads (done, 2026-11-01)
 
 **What was built**
@@ -52,7 +81,7 @@ Still to check: scanning 4 cards on a desk from about 10 ft on your Android phon
 Vite project, the prototype's logic split into tested modules, scanner tests (synthetic photos and
 `room.jpg` reading A B C D A B C D), and photo scanning in the app.
 
-## Next: Milestone 3
+## Next: Milestone 4
 
-Install the app to the phone's home screen, make it work offline, publish it with GitHub Pages,
-and import the prototype's backup.
+Classroom polish: projector view, the weekly backup reminder, archiving classes, the Far/Fast
+camera toggle, accessibility, and helpful empty states. Then a real classroom trial.

@@ -20,7 +20,7 @@ const S = {
   cls: lsGet("cls") || "math8", tab: lsGet("tab") || "sets",
   openSet: null, q: 0, pick: null, editing: false, lastScan: null, newSet: null,
   report: { range: "week", chosen: [] }, rosterEdit: null, confirm: null,
-  addPlan: null, existing: null, restore: null, update: null,
+  addPlan: null, existing: null, restore: null, restored: null, update: null,
   qImport: null, rImport: null, // CSV uploads waiting in a preview: { name, text, classMap, dec }
 };
 function lsGet(k) { try { return localStorage.getItem("cardscan:" + k); } catch { return null; } }
@@ -409,6 +409,9 @@ function viewCards() {
   const restoreNote = R ? `<div class="note">${R.error ? esc(R.error) : `Backup${R.exported ? " from " + esc(new Date(R.exported).toLocaleString()) : ""}${R.version === 1 ? " (from the first version of the app)" : ""}: ${plural(Object.keys(R.data.students).length, "student")}, ${plural(Object.values(R.data.sets).reduce((a, s) => a + Object.keys(s).length, 0), "bell work set")}. <b>Restoring replaces everything on this phone.</b>
       ${R.changes.length ? `<div style="margin-top:6px">Card numbers that change (hand out these cards):<ul class="changes">${R.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul></div>` : ""}
       <div class="row" style="margin-top:8px"><button class="btn sm primary" data-act="restore2">Restore</button><button class="btn sm" data-act="restorecancel">Cancel</button></div>`}</div>` : "";
+  // After a restore, the card numbers that changed stay listed until dismissed, so the right cards get handed out.
+  const restoredNote = S.restored?.length ? `<div class="note">Backup restored. <b>Card numbers that changed</b> (hand out these cards):<ul class="changes">${S.restored.map(c => `<li>${esc(c)}</li>`).join("")}</ul>
+      <div class="row" style="margin-top:8px"><button class="btn sm" data-act="restoredok">Done, cards handed out</button></div></div>` : "";
   return `<div><h2>Answer cards</h2><p class="sub">One set of 40 cards works for every class. Each student has one card number, the same in every class.</p></div>
   <div class="panel">
     <a class="scanbtn" href="${cardsPdfUrl}" download="STCS_Answer_Cards_1-40.pdf">Download cards 1–40 (PDF)</a>
@@ -428,7 +431,7 @@ function viewCards() {
   <div class="panel"><h3>Backup</h3>
     <p class="sub" style="margin:0">Your data is saved on this phone only. Download a backup each week, and restore it if you switch phones or clear your browser. Old backups from the first version of the app work too.</p>
     <div class="row"><button class="btn primary" data-act="backup">Download backup</button><button class="btn" data-act="restore">Restore from backup…</button></div>
-    ${restoreNote}
+    ${restoreNote}${restoredNote}
   </div>
   <div class="panel"><h3>Home screen</h3>
     ${installed() ? `<p class="sub" style="margin:0">Card Scan is installed. It opens from your home screen and works with no internet.</p>`
@@ -525,9 +528,10 @@ document.addEventListener("click", e => {
     case "csvsum": case "csvdet": exportCSV(act === "csvdet"); break;
     case "backup": download(`STCS_Card_Scan_backup_${todayISO()}.json`, JSON.stringify(buildBackup(S.data)), "application/json"); break;
     case "restore": $("#restoreIn").value = ""; $("#restoreIn").click(); break;
-    case "restore2": if (S.restore?.data) { S.data = S.restore.data; S.restore = null; if (!S.data.classes[S.cls]) S.cls = "math8"; commit(); toast("Backup restored"); } break;
+    case "restore2": if (S.restore?.data) { S.data = S.restore.data; S.restored = S.restore.changes; S.restore = null; if (!S.data.classes[S.cls]) S.cls = "math8"; commit(); toast("Backup restored"); } break;
     case "install": installPrompt?.prompt(); installPrompt?.userChoice.finally(() => { installPrompt = null; render(); }); break;
     case "update": S.update?.waiting?.postMessage("update"); break;
+    case "restoredok": S.restored = null; render(); break;
     case "restorecancel": S.restore = null; render(); break;
   }
 });

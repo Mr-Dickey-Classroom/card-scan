@@ -15,10 +15,11 @@ function swPlugin() {
     closeBundle() {
       const walk = d => readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]);
       const files = walk(outDir).map(f => relative(outDir, f).split(sep).join("/")).filter(f => f !== "sw.js" && f !== ".DS_Store").sort();
-      const hash = createHash("sha256");
+      const template = readFileSync(new URL("./src/sw.js", import.meta.url), "utf8");
+      const hash = createHash("sha256").update(template);
       for (const f of files) hash.update(f).update(readFileSync(join(outDir, f)));
       const list = ["./", ...files.filter(f => f !== "index.html")];
-      const src = readFileSync(new URL("./src/sw.js", import.meta.url), "utf8")
+      const src = template
         .replace("self.__FILES__", JSON.stringify(list))
         .replace("self.__VERSION__", JSON.stringify(hash.digest("hex").slice(0, 12)));
       writeFileSync(join(outDir, "sw.js"), src);
