@@ -62,6 +62,22 @@ export function detectMulti(source) {
   return Object.values(best).map(m => ({ card: m.card, corners: m.corners, angle: readAngle(m.corners) }));
 }
 
+// Same multi-scale rule as detectMulti, for an ImageData (a live camera frame sent to the worker).
+export function detectImageData(img) {
+  const det = getDetector(), W = img.width, H = img.height, best = {};
+  const smaller = [0.5, 0.25].filter(f => Math.min(Math.round(W * f), Math.round(H * f)) >= 300);
+  let full = null;
+  if (smaller.length) { full = makeCanvas(W, H); full.getContext("2d").putImageData(img, 0, 0); }
+  addReads(best, det.detect(img), 1);
+  for (const f of smaller) {
+    const w = Math.round(W * f), h = Math.round(H * f);
+    const c = makeCanvas(w, h), x = c.getContext("2d", { willReadFrequently: true });
+    x.drawImage(full, 0, 0, w, h);
+    addReads(best, det.detect(x.getImageData(0, 0, w, h)), f);
+  }
+  return Object.values(best).map(m => ({ card: m.card, corners: m.corners, angle: readAngle(m.corners) }));
+}
+
 // Decode a photo with the phone's rotation applied, capped at 4200 px on the longest side.
 export async function fileToCanvas(file) {
   let src;

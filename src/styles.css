@@ -133,3 +133,47 @@ tr.avg td { font-weight: 700; background: var(--none); }
 .picklist { max-height: 320px; overflow-y: auto; }
 .changes { margin: 6px 0 0; padding-left: 20px; }
 a.scanbtn { text-decoration: none; }
+
+/* Live scan (full screen, over everything) */
+body.living { overflow: hidden; }
+.live { position: fixed; inset: 0; z-index: 40; background: #000; color: #fff; overflow: hidden; touch-action: manipulation; }
+.live video, .live .ov { position: absolute; inset: 0; width: 100%; height: 100%; }
+.live video { object-fit: cover; }
+.live .ov { pointer-events: none; }
+.lbtn { min-height: 44px; min-width: 44px; border: 1px solid rgba(255,255,255,.35); background: rgba(20,22,16,.72); color: #fff; border-radius: 10px; padding: 8px 14px; font: 700 17px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.lbtn[data-l="settings"] { font-size: 24px; padding: 6px 10px; }
+.lbtn.primary { background: var(--yellow); color: #2a2200; border-color: var(--yellow); }
+.lbtn.danger { color: #ffb4a3; }
+.lbtn.wide { flex: 1; min-height: 52px; font-size: 20px; }
+.ltop { position: absolute; inset: 0 0 auto; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: calc(10px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 18px max(12px, env(safe-area-inset-left, 0px)); background: linear-gradient(rgba(0,0,0,.7), transparent); }
+.lprog { display: grid; gap: 4px; min-width: 0; }
+.lq { font: 700 14px/1.2 var(--display); letter-spacing: .05em; text-transform: uppercase; color: #e6e8da; }
+.lbar { height: 10px; border-radius: 5px; background: rgba(255,255,255,.22); overflow: hidden; }
+.lbar span { display: block; height: 100%; background: var(--yellow); transition: width .2s; }
+.lcount { font: 800 24px/1 var(--display); font-variant-numeric: tabular-nums; }
+.lpanel { position: absolute; top: calc(78px + env(safe-area-inset-top, 0px)); left: 12px; right: 12px; background: rgba(20,22,16,.94); border-radius: 12px; padding: 10px 14px; display: grid; gap: 6px; }
+.lpanel .check { border-color: rgba(255,255,255,.15); }
+.lpanel p { margin: 0 0 6px; }
+.lconfirm { z-index: 2; }
+.lmsg { position: absolute; left: 16px; right: 16px; top: 38%; transform: translateY(-50%); background: rgba(20,22,16,.94); border-radius: 12px; padding: 16px; display: grid; gap: 8px; text-align: center; justify-items: center; }
+.lmsg p { margin: 0; color: #d7d9ca; }
+.ldebug, .lhint { position: absolute; left: 12px; right: 12px; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); text-align: center; font: 600 13px/1.3 ui-monospace, Menlo, monospace; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.lhint { bottom: auto; top: calc(84px + env(safe-area-inset-top, 0px)); font: 600 14px/1.3 var(--body); }
+.lbottom { position: absolute; inset: auto 0 0; padding: 18px max(12px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); display: grid; gap: 10px; background: linear-gradient(transparent, rgba(0,0,0,.75)); }
+.lrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lrow.spread { justify-content: space-between; }
+.lchips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-height: 36px; }
+.lchips::-webkit-scrollbar { display: none; }
+.lchip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,.88); color: #16180f; font-weight: 700; }
+.lchip b { font: 800 19px/1 var(--display); }
+.lchip.ok { background: #dff1e5; color: #1f7a43; }
+.lchip.bad { background: #fbe3dc; color: #b2361d; }
+.lchip.any { background: #dcebff; color: #1f4e79; }
+.ldrawer { position: absolute; inset: auto 0 0; max-height: 62%; overflow-y: auto; background: #1b1e16; border-radius: 16px 16px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 3; }
+.ldrawer ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.ldrawer li { padding: 10px 0; border-top: 1px solid #30342a; font-weight: 700; }
+.ldrawer li i { color: var(--yellow); font-style: normal; font-weight: 600; margin-left: 6px; }
+.ldrawer .lcard { display: inline-block; min-width: 38px; color: #a3a893; font: 700 15px/1 var(--display); }
+.ldrawer p { color: #d7d9ca; margin: 10px 0 0; }
+.lnote { color: var(--yellow) !important; }
+@media (prefers-reduced-motion: reduce) { .lbar span { transition: none; } }

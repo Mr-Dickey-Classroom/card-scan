@@ -10,6 +10,7 @@ import { setPct, qProgress, sortSets, reportSets, reportRows, reteachList } from
 import { parsePaste } from "./paste.js";
 import { scoresCSV, answersCSV } from "./csv.js";
 import { buildBackup, readBackup } from "./backup.js";
+import { openLive } from "./live.js";
 
 // ---------- state ----------
 const S = {
@@ -80,6 +81,48 @@ function applyScan(set, scan, prevTurn = null) {
     qa[student.id] = L; read++;
   }
   scan.summary = { read, tilted, notHere, unassigned, total: scan.items.length };
+  set.answers = { ...(set.answers || {}), [scan.q]: qa };
+  saveSet(set);
+}
+
+// ---------- live scanning ----------
+function liveSettings() { try { return { hideColors: false, debug: false, ...JSON.parse(lsGet("live") || "{}") }; } catch { return { hideColors: false, debug: false }; } }
+
+function startLive() {
+  const set = curSet(); if (!set) return;
+  const q = S.q, question = set.questions[q];
+  S.pick = null;
+  openLive({
+    title: `Q${q + 1}${set.questions.length > 1 ? ` of ${set.questions.length}` : ""}`,
+    correct: question?.correct || "",
+    students: students(),
+    existing: set.answers?.[q] || {},
+    lookup: card => matchCard(S.data, S.cls, card),
+    settings: liveSettings(),
+    saveSettings: st => lsSet("live", JSON.stringify(st)),
+    onDone: ({ reads, tilted }) => {
+      const s2 = curSet(); if (s2 !== set) return;
+      S.lastScan = { q, live: true, reads, tilted };
+      applyLive(set, S.lastScan);
+      window.scrollTo(0, 0);
+    },
+    onPhoto: () => { $("#camIn").value = ""; $("#camIn").click(); },
+  });
+}
+
+// Writes a live scan's reads into the set. Like applyScan, only enrolled students are matched.
+function applyLive(set, scan) {
+  const qa = { ...(set.answers?.[scan.q] || {}) };
+  const notHere = [], unassigned = [];
+  let read = 0;
+  for (const { card, letter } of scan.reads) {
+    const { student, enrolled } = matchCard(S.data, S.cls, card);
+    if (!student) { unassigned.push(card); continue; }
+    if (!enrolled) { notHere.push(student); continue; }
+    qa[student.id] = letter; read++;
+  }
+  const tilted = scan.tilted.map(card => matchCard(S.data, S.cls, card)).filter(m => m.enrolled && !qa[m.student.id]).map(m => m.student.name);
+  scan.summary = { read, tilted, notHere, unassigned, total: scan.reads.length + tilted.length };
   set.answers = { ...(set.answers || {}), [scan.q]: qa };
   saveSet(set);
 }
@@ -155,12 +198,12 @@ function viewSet() {
   const pills = qs.map((x, i) => `<button class="qpill" data-act="q" data-i="${i}" aria-pressed="${i === S.q}">Q${i + 1}<span class="bar"><span style="width:${Math.round(qProgress(set, i, sts) * 100)}%"></span></span></button>`).join("");
   const sm = S.lastScan && S.lastScan.q === S.q ? S.lastScan.summary : null;
   const scanNote = sm ? `<div class="note">
-      <b>Read ${plural(sm.read, "card")}</b> from this photo.
+      <b>Read ${plural(sm.read, "card")}</b> ${S.lastScan.live ? "in the live scan" : "from this photo"}.
       ${sm.tilted.length ? `<br>Tilted too far to read: ${sm.tilted.map(esc).join(", ")}. Have them hold the card straight, then scan again.` : ""}
       ${sm.notHere.map(st => `<div class="row" style="margin-top:6px"><span>Card ${st.card} (${esc(shortName(st.name))}) isn't in this class.</span><button class="btn sm" data-act="enrollscan" data-sid="${st.id}">Add to ${esc(curClass()?.name)}</button></div>`).join("")}
       ${sm.unassigned.length ? `<br>${sm.unassigned.length > 1 ? "Cards" : "Card"} ${sm.unassigned.join(", ")} ${sm.unassigned.length > 1 ? "aren't" : "isn't"} given to any student yet.` : ""}
-      ${sm.total === 0 ? `<br>No cards found. Get closer or turn on more light, and keep the whole card in the photo.` : ""}
-      <div class="row" style="margin-top:8px"><button class="btn sm" data-act="turn">Photo was sideways? Turn answers ↻</button></div>
+      ${sm.total === 0 ? `<br>No cards found. Get closer or turn on more light, and keep the whole card in view.` : ""}
+      ${S.lastScan.live ? "" : `<div class="row" style="margin-top:8px"><button class="btn sm" data-act="turn">Photo was sideways? Turn answers ↻</button></div>`}
     </div>` : "";
   const rows = sts.map(s => {
     const a = qa[s.id];
@@ -182,13 +225,14 @@ function viewSet() {
     <div class="stats"><div class="stat"><div class="v">${answered}/${sts.length}</div><div class="l">Answered</div></div>
       <div class="stat"><div class="v">${correctN === null ? "—" : correctN}</div><div class="l">Correct</div></div>
       <div class="stat"><div class="v">${correctN === null || !answered ? "—" : Math.round(100 * correctN / answered) + "%"}</div><div class="l">Of answered</div></div></div>
-    <button class="scanbtn" data-act="scan" ${sts.length ? "" : "disabled"}>${CAM} Take photo of room</button>
-    <div class="row"><button class="btn sm" data-act="pickphoto" ${sts.length ? "" : "disabled"}>Use a photo you already took</button>
+    <button class="scanbtn" data-act="live" ${sts.length ? "" : "disabled"}>${CAM} Live scan</button>
+    <div class="row"><button class="btn sm" data-act="scan" ${sts.length ? "" : "disabled"}>Take photo of room</button>
+      <button class="btn sm" data-act="pickphoto" ${sts.length ? "" : "disabled"}>Use a photo you already took</button>
       ${S.q < qs.length - 1 ? `<button class="btn sm dark" data-act="q" data-i="${S.q + 1}">Next: Q${S.q + 2} →</button>` : ""}</div>
     ${scanNote}
-    ${sm ? `<div class="photo"><canvas id="preview"></canvas></div>` : ""}
+    ${sm && !S.lastScan.live ? `<div class="photo"><canvas id="preview"></canvas></div>` : ""}
   </div>
-  ${sts.length ? `<div class="roster" aria-label="Answers">${rows}</div><p class="sub">Tap an answer to change it by hand. A new photo overwrites only the cards it reads.</p>` : `<div class="note info">No students on the roster yet. Add them on the Roster tab.</div>`}`;
+  ${sts.length ? `<div class="roster" aria-label="Answers">${rows}</div><p class="sub">Tap an answer to change it by hand. A new scan overwrites only the cards it reads.</p>` : `<div class="note info">No students on the roster yet. Add them on the Roster tab.</div>`}`;
 }
 
 function viewEditSet(set) {
@@ -310,9 +354,9 @@ function viewCards() {
   </div>
   <div class="panel"><h3>Scanning tips</h3>
     <ul class="steps">
-      <li>Stand at the front and take one photo that shows every card. Hold the phone level. The app reads "up" from the photo.</li>
+      <li>Tap <b>Live scan</b>, stand at the front, and slowly sweep the phone across the room. Hold it upright and level: the app reads "up" from the camera. Names fill in as cards are read.</li>
       <li>Good light matters more than distance. Turn on the lights; avoid a bright window behind the students.</li>
-      <li>Missed a few? Take a second photo. It adds the cards it reads without erasing the others.</li>
+      <li>Missed a few? Tap <b>Missing</b> to see who. A second scan or photo adds the cards it reads without erasing the others.</li>
       <li>Cards tilted more than about a third of a turn are skipped rather than guessed. The app tells you whose.</li>
     </ul></div>
   <div class="panel"><h3>Backup</h3>
@@ -347,10 +391,11 @@ document.addEventListener("click", e => {
     case "back": Object.assign(S, { openSet: null, editing: false, confirm: null }); render(); break;
     case "q": S.q = +b.dataset.i; S.pick = null; render(); break;
     case "correct": if (set) { set.questions[S.q].correct = b.dataset.l; saveSet(set); } break;
+    case "live": startLive(); break;
     case "scan": $("#camIn").value = ""; $("#camIn").click(); break;
     case "pickphoto": $("#picIn").value = ""; $("#picIn").click(); break;
     case "turn": if (set && S.lastScan) { const prev = S.lastScan.turn; S.lastScan.turn = (prev + 1) % 4; applyScan(set, S.lastScan, prev); toast("Turned answers a quarter turn"); } break;
-    case "enrollscan": if (set && S.lastScan) { enroll(S.data, S.cls, [b.dataset.sid]); applyScan(set, S.lastScan); toast("Added to " + c.name); } break;
+    case "enrollscan": if (set && S.lastScan) { enroll(S.data, S.cls, [b.dataset.sid]); (S.lastScan.live ? applyLive : applyScan)(set, S.lastScan); toast("Added to " + c.name); } break;
     case "pick": S.pick = S.pick === b.dataset.sid ? null : b.dataset.sid; render(); break;
     case "setans": if (set) { const qa = { ...(set.answers?.[S.q] || {}) }; if (b.dataset.l) qa[b.dataset.sid] = b.dataset.l; else delete qa[b.dataset.sid]; set.answers = { ...(set.answers || {}), [S.q]: qa }; S.pick = null; saveSet(set); } break;
     case "editset": S.editing = !S.editing; S.confirm = null; render(); break;

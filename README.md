@@ -8,8 +8,9 @@ the original scanner tests. Don't change the card codes: 40 cards are already pr
 
 ## Status
 
-**Milestone 1 is done:** the project is set up, the prototype's logic is split into tested parts,
-and photo scanning works. Next is Milestone 2, live camera scanning.
+**Milestones 1 and 2 are done:** photo scanning and live camera scanning both work. Next is
+Milestone 3: install the app on the phone's home screen, make it work offline, and put it online
+with GitHub Pages.
 
 ## Everyday commands
 
@@ -19,25 +20,43 @@ Open the Terminal app, go to this folder, and type one of these:
 | --- | --- |
 | `npm install` | Downloads the tools the project needs. Do this once, and again if `package.json` changes. |
 | `npm run dev` | Starts the app on your computer. Open the address it prints (http://localhost:5173). Press Control+C to stop it. |
-| `npm run dev -- --host` | Same, but your phone can open it too, if it's on the same Wi-Fi. |
+| `npm run dev -- --host` | Same, but your phone can open it too, if it's on the same Wi-Fi. Photo scanning only. |
+| `npm run dev:phone` | Same, with a secure (https) address, so the phone lets the app use the **live camera**. |
 | `npm test` | Runs every automated check (logic tests, then scanner tests in a real browser). |
 | `npm run build` | Makes the finished app in the `dist/` folder. (Milestone 3 publishes this online.) |
 
-### Trying it on your phone (photo scanning)
+### Trying it on your phone (live scanning)
+
+Phones only allow the camera on secure (https) addresses. `npm run dev:phone` makes one on your
+home network, using a certificate your computer makes for itself.
 
 1. Put your phone and computer on the **same home Wi-Fi**. School Wi-Fi usually blocks this.
-2. On the computer, run `npm run dev -- --host`.
-3. It prints two addresses. Type the **Network** one (it looks like `http://192.168.1.23:5173`) into Chrome on your phone.
-4. On the Roster tab, paste a few names. On Bell work, make a set, open it, and tap **Take photo of room**.
+2. On the computer, run `npm run dev:phone`.
+3. It prints two addresses. Type the **Network** one, starting with **https**, into Chrome on your
+   phone. It looks like `https://192.168.1.23:5173`. Type the `s` in `https`.
+4. Chrome shows a warning: **"Your connection is not private."** That's expected. The warning means
+   the certificate was made by your own computer, not by a company Chrome knows. Nothing leaves your
+   house. Tap **Advanced**, then **Proceed to 192.168.… (unsafe)**. You'll do this once per visit.
+5. On the Roster tab, paste a few names. On Bell work, make a set, open it, and tap **Live scan**.
+   Chrome asks to use the camera: tap **Allow**.
+6. Point the phone at the cards. Each card gets a box with the student's first name and letter.
+   A name is recorded after it's seen twice in a row, with a short buzz. The bar at the top counts
+   "answered", and **Missing** lists who hasn't been read. Tap **Done** to save.
 
-The live camera view needs a secure (https) address, so it comes with Milestones 2–3. Photo
-scanning works now.
+The ⚙ button in the live view can hide the right/wrong colors (so students can't see them), and can
+show the detection speed for testing. **Take photo of room** still works if the camera won't start.
+
+When the app goes online in Milestone 3, GitHub Pages gives it a real https address and the
+certificate warning goes away.
 
 ## How the code is organized
 
 | File | What's in it |
 | --- | --- |
 | `src/detect.js` | Card reading: the 40-card dictionary, the letter-on-top rule, the tilted-card rule, reading at 3 sizes. |
+| `src/live.js` | The full-screen live camera view: boxes, progress bar, Missing list, wake lock. |
+| `src/scan-worker.js` | Reads camera frames in the background (a Web Worker), so the preview stays smooth. |
+| `src/debounce.js` | The "seen twice in a row" rule for live scanning. |
 | `src/vendor/` | The js-aruco2 card-reading library (MIT license), bundled so nothing loads from the internet. |
 | `src/roster.js` | One student list. Each student has one card number (1–40) in every class. |
 | `src/scoring.js` | Scores, absent rules, report date ranges, questions to reteach. |
@@ -47,7 +66,7 @@ scanning works now.
 | `src/storage.js` | Saves to the phone (IndexedDB). |
 | `src/main.js`, `src/styles.css`, `index.html` | The screens. |
 | `tests/unit/` | Logic tests (Vitest). |
-| `tests/scanner/` | Scanner tests in a real browser (Playwright): made-up classroom photos, `room.jpg`, and a full run through the app on a phone-sized screen. |
+| `tests/scanner/` | Scanner tests in a real browser (Playwright): made-up classroom photos, `room.jpg`, a full run through the app on a phone-sized screen, and live scanning with a fake camera. |
 
 ## If `npm install` complains about "root-owned files"
 
