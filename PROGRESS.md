@@ -2,7 +2,7 @@
 
 Where the build stands, milestone by milestone (BUILD_BRIEF section 7). Newest at the top.
 
-## Milestone 3: installable and online (2026-11-01)
+## Milestone 3: installable and online (done, 2026-11-01)
 
 **The app's address:** https://mr-dickey-classroom.github.io/card-scan/
 (code: github.com/Mr-Dickey-Classroom/card-scan, a public repository holding only code and made-up sample names).
@@ -28,8 +28,8 @@ builds the app, opens it once, goes offline and reopens it with the roster still
 `tests/scanner/restore.spec.js` restores `reference/sample-backup.json` and a v1 file where one
 student has two card numbers.
 
-**Still to check on the phone:** install to the home screen, open in airplane mode, and restore
-Mr. D's real prototype backup.
+**Checked on Mr. D's Android phone (2026-11-01):** it installs to the home screen, opens and
+scans in airplane mode, and his real prototype backup restores. Milestone 3 is done.
 
 ## Milestone 1 add-on: CSV uploads (done, 2026-11-01)
 
